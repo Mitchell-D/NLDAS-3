@@ -253,10 +253,10 @@ if __name__=="__main__":
     out_zarr_path = Path("/rtmp/mdodson/nldas3_chunk_benchmarking.zarr")
 
     ## switchboard
-    print_table = True
+    print_table = False
     download_new_subset = False
     load_chunk_variations = False
-    run_benchmarks = False
+    run_benchmarks = True
 
     ## table printing settings
     full_grid_shape = (6500, 11700, 8400)
