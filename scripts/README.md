@@ -18,7 +18,7 @@ The `nldas3_chunks_all.npz` file needed to run
 `calc_gfv1_nldas3_overlap.npz` is available in the `data/`
 subdirectory, and may be created by `get_nldas3_chunk_polygons`
 from `benchmarks/zarr_time_chunk/create_nldas3_chunk_polygons.py`,
-using the default chunk shape of NLDAS-3 which is (1, 500, 900).
+using the default spatial chunk shape of NLDAS-3 (500, 900).
 
 ## plot\_gfv1\_nldas3\_overlap.py
 
