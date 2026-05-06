@@ -255,7 +255,7 @@ if __name__=="__main__":
     ## switchboard
     print_table = False
     download_new_subset = False
-    load_chunk_variations = False
+    load_chunk_variations = True
     run_benchmarks = True
 
     ## table printing settings
@@ -290,29 +290,33 @@ if __name__=="__main__":
     ## daily
     #'''
     chunking_cands = [
-        ChunkConfig(nlat=500, nlon=900, ntime=1),
-        ChunkConfig(nlat=325, nlon=650, ntime=1),
-        ChunkConfig(nlat=500, nlon=300, ntime=1),
-        ChunkConfig(nlat=260, nlon=260, ntime=1),
-        ChunkConfig(nlat=130, nlon=260, ntime=1),
+        #ChunkConfig(nlat=500, nlon=900, ntime=1),
+        #ChunkConfig(nlat=325, nlon=650, ntime=1),
+        #ChunkConfig(nlat=500, nlon=300, ntime=1),
+        #ChunkConfig(nlat=260, nlon=260, ntime=1),
+        #ChunkConfig(nlat=130, nlon=260, ntime=1),
+        #ChunkConfig(nlat=500, nlon=900, ntime=8),
+        #ChunkConfig(nlat=325, nlon=650, ntime=8),
+        #ChunkConfig(nlat=500, nlon=300, ntime=8),
+        #ChunkConfig(nlat=260, nlon=260, ntime=8),
+        #ChunkConfig(nlat=130, nlon=260, ntime=8),
+        ChunkConfig(nlat=500, nlon=900, ntime=16),
+        ChunkConfig(nlat=325, nlon=650, ntime=16),
+        ChunkConfig(nlat=500, nlon=300, ntime=16),
+        ChunkConfig(nlat=260, nlon=260, ntime=16),
+        ChunkConfig(nlat=130, nlon=260, ntime=16),
 
-        ChunkConfig(nlat=500, nlon=900, ntime=8),
-        ChunkConfig(nlat=325, nlon=650, ntime=8),
-        ChunkConfig(nlat=500, nlon=300, ntime=8),
-        ChunkConfig(nlat=260, nlon=260, ntime=8),
-        ChunkConfig(nlat=130, nlon=260, ntime=8),
+        #ChunkConfig(nlat=500, nlon=900, ntime=24),
+        #ChunkConfig(nlat=325, nlon=650, ntime=24),
+        #ChunkConfig(nlat=500, nlon=300, ntime=24),
+        #ChunkConfig(nlat=260, nlon=260, ntime=24),
+        #ChunkConfig(nlat=130, nlon=260, ntime=24),
 
-        ChunkConfig(nlat=500, nlon=900, ntime=24),
-        ChunkConfig(nlat=325, nlon=650, ntime=24),
-        ChunkConfig(nlat=500, nlon=300, ntime=24),
-        ChunkConfig(nlat=260, nlon=260, ntime=24),
-        ChunkConfig(nlat=130, nlon=260, ntime=24),
-
-        ChunkConfig(nlat=500, nlon=900, ntime=48),
-        ChunkConfig(nlat=325, nlon=650, ntime=48),
-        ChunkConfig(nlat=500, nlon=300, ntime=48),
-        ChunkConfig(nlat=260, nlon=260, ntime=48),
-        ChunkConfig(nlat=130, nlon=260, ntime=48),
+        ChunkConfig(nlat=500, nlon=900, ntime=32),
+        ChunkConfig(nlat=325, nlon=650, ntime=32),
+        ChunkConfig(nlat=500, nlon=300, ntime=32),
+        ChunkConfig(nlat=260, nlon=260, ntime=32),
+        ChunkConfig(nlat=130, nlon=260, ntime=32),
         ]
     #'''
 
