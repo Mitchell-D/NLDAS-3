@@ -81,6 +81,7 @@ def nldas3_subset_to_zarr(time_slice, lat_slice, lon_slice, times_per_load,
         for ix0 in np.arange(nslices) * times_per_load
         ]
 
+    ## initialize the dataset with a lazy-loaded empty dask array
     default_array_label = acquire_var + "-" + ".".join(map(str,out_chunks))
     default_array = dask.array.zeros(
         (ntimes, nlats, nlons),
@@ -164,17 +165,8 @@ def run_benchmark(zarr_url, test_type, var_label,
         cb_lat = np.cumsum(np.concatenate([[0], arr.chunksizes["lat"]]))
         cb_lon = np.cumsum(np.concatenate([[0], arr.chunksizes["lon"]]))
 
-        ## get an index array of all chunks
-        #cixs = np.stack(np.meshgrid(
-        #    np.arange(arr.shape[0]),
-        #    np.arange(arr.shape[1]),
-        #    np.arange(arr.shape[2]),
-        #    indexing="ij",
-        #    ), axis=-1).reshape(-1,3)
-
         if test_type=="chunk":
             ## choose a random chunk
-            #ixc = rng.integers(cixs.shape[0])
             ixc_0 = rng.integers(cb_time.size-1)
             ixc_1 = rng.integers(cb_lat.size-1)
             ixc_2 = rng.integers(cb_lon.size-1)
@@ -194,8 +186,6 @@ def run_benchmark(zarr_url, test_type, var_label,
 
         if test_type=="multichunk":
             ## choose multiple random chunks w/o replacement
-            #ixcs = rng.choice(cixs, size=test_settings["nchunks"],
-            #    axis=0, replace=False)
             ixc_0 = rng.integers(0, cb_time.size-1, test_settings["nchunks"])
             ixc_1 = rng.integers(0, cb_lat.size-1, test_settings["nchunks"])
             ixc_2 = rng.integers(0, cb_lon.size-1, test_settings["nchunks"])
@@ -290,14 +280,17 @@ if __name__=="__main__":
     benchmark_var = "Tair"
     multi_chunk_range = (2, 13)
     #json_out_path = Path("nldas3_chunk_bench_results_local.json")
-    json_out_path = Path("nldas3_chunk_bench_results.json")
+    json_out_path = Path("data/nldas3_chunk_bench_results.json")
     nprocs = 24
     #nprocs = 1
+
+    ## run default
+    chunking_cands = [ChunkConfig(500, 900, 1)]
 
     ## daily
     #'''
     chunking_cands = [
-        #ChunkConfig(500, 900, 1), ## disabled since default
+        ChunkConfig(nlat=500, nlon=900, ntime=1),
         ChunkConfig(nlat=325, nlon=650, ntime=1),
         ChunkConfig(nlat=500, nlon=300, ntime=1),
         ChunkConfig(nlat=260, nlon=260, ntime=1),
@@ -314,6 +307,12 @@ if __name__=="__main__":
         ChunkConfig(nlat=500, nlon=300, ntime=24),
         ChunkConfig(nlat=260, nlon=260, ntime=24),
         ChunkConfig(nlat=130, nlon=260, ntime=24),
+
+        ChunkConfig(nlat=500, nlon=900, ntime=48),
+        ChunkConfig(nlat=325, nlon=650, ntime=48),
+        ChunkConfig(nlat=500, nlon=300, ntime=48),
+        ChunkConfig(nlat=260, nlon=260, ntime=48),
+        ChunkConfig(nlat=130, nlon=260, ntime=48),
         ]
     #'''
 
@@ -405,7 +404,6 @@ if __name__=="__main__":
 
         results = {}
         if nprocs>1:
-            assert not json_out_path.exists(), json_out_path
             with mp.Pool(nprocs) as pool:
                 for a,r in pool.imap_unordered(mp_run_benchmark, args):
                     collect_benchmark_result(
@@ -414,7 +412,6 @@ if __name__=="__main__":
                         json_path=json_out_path
                         )
         else:
-            assert not json_out_path.exists(), json_out_path
             for a,r in map(mp_run_benchmark, args):
                 collect_benchmark_result(
                     cur_args=a,

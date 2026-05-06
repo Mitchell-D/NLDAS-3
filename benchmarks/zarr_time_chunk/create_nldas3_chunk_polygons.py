@@ -8,8 +8,8 @@ import numpy as np
 import boto3
 import netCDF4 as nc
 import shapely
-#from shapely.strtree import STRtree
-#from shapely.wkt import loads
+import multiprocessing as mp
+from pprint import pprint
 from pathlib import Path
 from osgeo import ogr,osr
 
@@ -102,8 +102,8 @@ def get_slice_bounds(npx, chunk_size):
     return slc_0,slc_f
 
 def get_chunk_polygons(latitudes:np.array, longitudes:np.array,
-        chunk_shape:tuple, pixel_resolution:tuple, valid_mask=None,
-        return_invalid_polygons=False):
+        chunk_shape:tuple, pixel_resolution:tuple=None, valid_mask=None,
+        return_invalid_polygons=True):
     """
     Given an equirectangular grid of latitudes and longitudes and a chunk
     shape, returns shapely polygons and index slices associated with each
@@ -133,6 +133,7 @@ def get_chunk_polygons(latitudes:np.array, longitudes:np.array,
     """
     ## get the index bounds associated with each chunk slice
     assert latitudes.ndim == 1 and longitudes.ndim== 1
+    assert len(chunk_shape)==2
     nlats = latitudes.size
     nlons = longitudes.size
     slc_lat_0,slc_lat_f = get_slice_bounds(nlats, chunk_shape[0])
@@ -157,6 +158,12 @@ def get_chunk_polygons(latitudes:np.array, longitudes:np.array,
             ),
         axis=0,
         ).reshape(2,-1)
+
+    if pixel_resolution is None:
+        pixel_resolution = (
+            np.abs(np.average(np.diff(latitudes))),
+            np.abs(np.average(np.diff(longitudes)))
+            )
 
     ## get the latlon indeces of the outer extremes of each chunk polygon
     lat_0 = np.round(latitudes[slc_0[0]] - pixel_resolution[0] / 2, 5)
@@ -202,29 +209,35 @@ def get_chunk_polygons(latitudes:np.array, longitudes:np.array,
 
     return chunk_polys,chunk_meta
 
-if __name__=="__main__":
-    data_dir = Path("data")
-
-    nldas3_path = data_dir.joinpath("nldas3_params.nc")
-    #out_gdb_dir = data_dir.joinpath("nldas3_chunks_land.gdb")
-    #out_geojson_path = data_dir.joinpath("nldas3_chunks_land.geojson")
-    #out_npz_path = data_dir.joinpath("nldas3_chunks_land.npz")
-    out_gdb_dir = data_dir.joinpath("nldas3_chunks_all.gdb")
-    out_geojson_path = data_dir.joinpath("nldas3_chunks_all.geojson")
-    out_npz_path = data_dir.joinpath("nldas3_chunks_all.npz")
-
-    nldas3_chunk_shape = (500, 900) ## pixels (lat, lon)
-    nldas3_px_res = (.01,.01) ## degrees (lat, lon)
-    return_invalid_polygons = False
-    overwrite_gdb = True
-    overwrite_geojson = True
-    overwrite_npz = True
-
-    """ ----( end typical configuration )---- """
+def get_nldas3_chunk_polygons(nldas3_param_path, poly_dir_path, poly_file_str,
+        chunk_shape, return_invalid_polygons=True, pixel_res_deg=None,
+        overwrite_all=False, overwrite_gdb=False, overwrite_geojson=False,
+        overwrite_npz=False):
+    """
+    :@param nldsa3_param_path: Path where the NLDAS-3 parameter file
+        exists, or otherwise should be downloaded.
+    :@param poly_dir_path: Path where output files should be generated
+    :@param poly_file_str: File name string without a file extention used to
+        label each output file within the output directory
+    :@param chunk_shape: 2-tuple of ints (lat_px, lon_px) indicating the shape
+        of each chunk on the NLDAS-3 grid.
+    :@param return_invalid_polygons: If True, also returns polygons for
+        chunks that contain no valid points, marking them as such in metadata.
+    :@param pixel_res_degrees: the resolution of each pixel in degrees, used
+    :@param overwrite_*: overwrite existing output files
+    """
+    ## establish the output
+    if not poly_dir_path.exists():
+        raise ValueError("output directory path doesn't exist:", poly_dir_path)
+    if "." in poly_file_str:
+        raise ValueError("string may not have a file extention:",poly_file_str)
+    out_gdb_dir = poly_dir_path.joinpath(f"{poly_file_str}.gdb")
+    out_geojson_path = poly_dir_path.joinpath(f"{poly_file_str}.geojson")
+    out_npz_path = poly_dir_path.joinpath(f"{poly_file_str}.npz")
 
     ## check whether generated files exist
     if out_gdb_dir.exists():
-        if overwrite_gdb:
+        if overwrite_gdb or overwrite_all:
             shutil.rmtree(out_gdb_dir)
         else:
             raise ValueError(
@@ -233,14 +246,14 @@ if __name__=="__main__":
     else:
         out_gdb_dir.mkdir()
     if out_geojson_path.exists():
-        if overwrite_geojson:
+        if overwrite_geojson or overwrite_all:
             out_geojson_path.unlink()
         else:
             raise ValueError(
                 f"geojson exists: {out_geojson_path.as_posix()}\nset",
                 "overwrite_geojson to True to overwrite automatically.")
     if out_npz_path.exists():
-        if overwrite_npz:
+        if overwrite_npz or overwrite_all:
             out_npz_path.unlink()
         else:
             raise ValueError(
@@ -248,16 +261,16 @@ if __name__=="__main__":
                 "overwrite_npz to True to overwrite automatically.")
 
     ## download the parameter file if it doesn't exist already
-    if not nldas3_path.exists():
+    if not nldas3_param_path.exists():
         s3 = boto3.client("s3")
         s3.download_file(
             "nasa-waterinsight",
             "NLDAS3/static/NLDAS-3_dominant-soil-vegetation.nc",
-            nldas3_path.as_posix(),
+            nldas3_param_path.as_posix(),
             )
 
     ## extract geo coords and land mask from the parameter file
-    with nc.Dataset(nldas3_path, "r") as param_ds:
+    with nc.Dataset(nldas3_param_path, "r") as param_ds:
         nldas3_lats = param_ds["lat"][...]
         nldas3_lons = param_ds["lon"][...]
         ## class 14 corresponds to water
@@ -266,10 +279,10 @@ if __name__=="__main__":
         chunk_polys,chunk_meta = get_chunk_polygons(
             latitudes=nldas3_lats,
             longitudes=nldas3_lons,
-            chunk_shape=nldas3_chunk_shape,
+            chunk_shape=chunk_shape,
             ## Use the water surface type to define a land mask
             valid_mask=nldas3_land_mask,
-            pixel_resolution=nldas3_px_res,
+            pixel_resolution=pixel_res_deg,
             return_invalid_polygons=return_invalid_polygons,
             )
 
@@ -316,15 +329,64 @@ if __name__=="__main__":
 
     ## declare an array covering the nldas-3 domain and set the value of each
     ## chunk to its index in the info list
-    chunk_poly_mask = np.full(nldas3_land_mask.shape,  65535, dtype=np.uint16)
+    chunk_poly_mask = np.full(nldas3_land_mask.shape,  65535, dtype=np.uint32)
     for i,m in enumerate(chunk_meta):
         tmp_slc_lat = slice(m["lat_slice_start"], m["lat_slice_stop"])
         tmp_slc_lon = slice(m["lon_slice_start"], m["lon_slice_stop"])
         chunk_poly_mask[tmp_slc_lat, tmp_slc_lon] = i
 
-    ## store a compressed numpy file with the
+    ## store a compressed numpy file with the rasterized chunk masks
     np.savez_compressed(
         out_npz_path,
         chunk_masks=chunk_poly_mask,
         chunk_info=chunk_info,
         )
+
+    return list(sorted([
+        p for p in poly_dir_path.iterdir()
+        if p.stem==poly_file_str
+        ]))
+
+def mp_get_nldas3_chunk_polygons(args):
+    return args,get_nldas3_chunk_polygons(**args)
+
+if __name__=="__main__":
+    data_dir = Path("data")
+
+    nldas3_path = data_dir.joinpath("nldas3_params.nc")
+    benchmark_results_path = data_dir.joinpath(
+            "nldas3_chunk_bench_results.json")
+
+    poly_dir_path = data_dir.joinpath("polys")
+    out_file_template = "nldas3_chunks_{chunk_layout}"
+    gen_poly_files = True
+    nprocs = 8
+
+    """ --( generate polygons based on chunk benchmark results ) """
+
+    if gen_poly_files:
+        res_dict = json.load(benchmark_results_path.open("r"))
+        tlabels = list(res_dict.keys()) ## test labels
+        ## 3-tuple of ints (time, lat, lon) counting pixels per tested chunk
+        chunk_layouts = list(set(
+            tuple(map(int, k.split("-")[-1].split(".")[1:]))
+            for tl in tlabels for k in res_dict[tl]
+            ))
+
+        args = [{
+            "nldas3_param_path":nldas3_path,
+            "poly_dir_path":poly_dir_path,
+            "poly_file_str":out_file_template.format(
+                chunk_layout="-".join(map(str, cc))),
+            "chunk_shape":cc,
+            "return_invalid_polygons":True, ## metadata indicates land points
+            "overwrite_all":True,
+            "pixel_res_deg":None, ## calculate with param data
+            } for cc in chunk_layouts
+            ]
+
+        with mp.Pool(nprocs) as pool:
+            for ptup in pool.imap_unordered(
+                    mp_get_nldas3_chunk_polygons, args):
+                print(f"Generated:")
+                pprint(ptup)
