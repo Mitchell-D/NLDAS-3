@@ -173,7 +173,6 @@ def get_chunk_polygons(latitudes:np.array, longitudes:np.array,
 
     ## if a mask is provided and the user doesn't want polygons with no valid
     ## points, restrict the returned slices & polys.
-    has_valid_land_points = []
     chunk_ixy,chunk_ixx = [],[]
     chunk_meta = []
     chunk_polys = []
@@ -293,7 +292,7 @@ def get_nldas3_chunk_polygons(nldas3_param_path, poly_dir_path, poly_file_str,
             polygons=chunk_polys,
             meta=chunk_meta,
             meta_types={
-                "has_land_types":ogr.OFTBinary,
+                "has_valid_points":ogr.OFTBinary,
                 "lat_slice_start":ogr.OFTInteger64,
                 "lat_slice_stop":ogr.OFTInteger64,
                 "lon_slice_start":ogr.OFTInteger64,
@@ -309,7 +308,7 @@ def get_nldas3_chunk_polygons(nldas3_param_path, poly_dir_path, poly_file_str,
         polygons=chunk_polys,
         meta=chunk_meta,
         meta_types={
-            "has_land_points":bool,
+            "has_valid_points":bool,
             "lat_slice_start":int,
             "lat_slice_stop":int,
             "lon_slice_start":int,

@@ -167,8 +167,8 @@ def plot_geo_ints(int_data, lat, lon, shapes=None,
 def plot_nldas3_chunk_polygons(nldas3_param_path, poly_npz_path,
         out_path_polys=None, out_path_ints=None,
         plot_spec_polys={}, plot_spec_ints={},
-        cmap_str="prism", water_color="#1b1d26", oob_color="black",
-        oob_value=65535):
+        randomize_cmap=False, seed=None, cmap_str="prism",
+        water_color="#1b1d26", oob_color="black", oob_value=65535):
     """
     """
     ps_polys = {
@@ -202,6 +202,7 @@ def plot_nldas3_chunk_polygons(nldas3_param_path, poly_npz_path,
         "border_linewidth":1,
         "dpi":500,
         }
+    ps_ints.update(plot_spec_ints)
 
     ## download the parameter file if it doesn't exist already
     if not nldas3_path.exists():
@@ -222,15 +223,22 @@ def plot_nldas3_chunk_polygons(nldas3_param_path, poly_npz_path,
 
     chunks = np.load(poly_npz_path, allow_pickle=True)
 
+    cinfo = chunks["chunk_info"]
+    rng = np.random.default_rng(seed)
+
     if not out_path_polys is None:
-        cinfo = chunks["chunk_info"]
         cpolys = [Polygon(cd["geometry"][0]) for cd in cinfo]
         cmap = plt.get_cmap(cmap_str)
+
+        cmap_index = np.arange(len(cinfo))
+        if randomize_cmap:
+            rng.shuffle(cmap_index)
+
         if ps_polys["shape_params"]["facecolor"] == "from_cmap":
             ps_polys["shape_params"]["facecolor"]  = [
                 oob_color if not c["has_valid_points"]
                 else cmap(i/(len(cinfo)-1))
-                for i,c in enumerate(cinfo)
+                for i,c in zip(cmap_index, cinfo)
                 ]
 
         plot_geo_ints(
@@ -262,9 +270,13 @@ def plot_nldas3_chunk_polygons(nldas3_param_path, poly_npz_path,
             cmasks,
             )
 
+        cmap_index = np.arange(cvalid.size)
+        if randomize_cmap:
+            rng.shuffle(cmap_index)
+
         ## make a mapping between unique ints and their colors
         colors = {
-            **{v:cmap(i/(cvalid.size-1)) for i,v in enumerate(cvalid)},
+            **{v:cmap(i/(cvalid.size-1)) for i,v in zip(cmap_index, cvalid)},
             oob_value:oob_color,
             water_value:water_color,
             }
@@ -304,15 +316,23 @@ if __name__=="__main__":
     args = [{
         "nldas3_param_path":nldas3_path,
         "poly_npz_path":nzp,
-        "out_path_ints":fig_dir.joinpath(f"{nzp.stem}.png"),
+        "out_path_ints":fig_dir.joinpath(f"poly_{nzp.stem}.png"),
+        "out_path_polys":fig_dir.joinpath(f"int_{nzp.stem}.png"),
         "plot_spec_ints":{
-            "title":f"NLDAS-3 {nzp.stem.split('_')[-1].split('-')}",
+            "title":f"NLDAS-3 {cc}",
             },
-        "cmap_str":"prism",
+        "plot_spec_polys":{
+            "title":f"NLDAS-3 {cc}",
+            },
+        "randomize_cmap":True,
+        "cmap_str":"terrain",
         "water_color":"#1b1d26",
         "oob_color":"black",
         "oob_value":65535,
-        } for nzp in plot_npz_paths
+        } for nzp,cc in map(
+            lambda p: (p,tuple(map(int, p.stem.split("_")[-1].split("-")))),
+            plot_npz_paths,
+            )
         ]
 
     with mp.Pool(nprocs) as pool:

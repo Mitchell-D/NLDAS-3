@@ -15,19 +15,19 @@ from pathlib import Path
 from pprint import pprint
 
 class ChunkConfig:
-    def __init__(self, nlat, nlon, ntime):
+    def __init__(self, ntime, nlat, nlon):
+        self.ntime = ntime
         self.nlat = nlat
         self.nlon = nlon
-        self.ntime = ntime
 
     def chunk_size_mb(self, dtype_size=4):
         return self.nlat*self.nlon*self.ntime*dtype_size/1000**2
 
     def chunk_layout(self, total_lats, total_lons, total_times):
         return (
+            (total_times // self.ntime) + int((total_times % self.ntime) != 0),
             (total_lats // self.nlat) + int((total_lats % self.nlat) != 0),
             (total_lons // self.nlon) + int((total_lons % self.nlon) != 0),
-            (total_times // self.ntime) + int((total_times % self.ntime) != 0),
             )
 
     def __str__(self):
@@ -253,10 +253,10 @@ if __name__=="__main__":
     out_zarr_path = Path("/rtmp/mdodson/nldas3_chunk_benchmarking.zarr")
 
     ## switchboard
-    print_table = False
+    print_table = True
     download_new_subset = False
-    load_chunk_variations = True
-    run_benchmarks = True
+    load_chunk_variations = False
+    run_benchmarks = False
 
     ## table printing settings
     full_grid_shape = (6500, 11700, 8400)
@@ -290,33 +290,40 @@ if __name__=="__main__":
     ## daily
     #'''
     chunking_cands = [
-        #ChunkConfig(nlat=500, nlon=900, ntime=1),
-        #ChunkConfig(nlat=325, nlon=650, ntime=1),
-        #ChunkConfig(nlat=500, nlon=300, ntime=1),
-        #ChunkConfig(nlat=260, nlon=260, ntime=1),
-        #ChunkConfig(nlat=130, nlon=260, ntime=1),
-        #ChunkConfig(nlat=500, nlon=900, ntime=8),
-        #ChunkConfig(nlat=325, nlon=650, ntime=8),
-        #ChunkConfig(nlat=500, nlon=300, ntime=8),
-        #ChunkConfig(nlat=260, nlon=260, ntime=8),
-        #ChunkConfig(nlat=130, nlon=260, ntime=8),
-        ChunkConfig(nlat=500, nlon=900, ntime=16),
-        ChunkConfig(nlat=325, nlon=650, ntime=16),
-        ChunkConfig(nlat=500, nlon=300, ntime=16),
-        ChunkConfig(nlat=260, nlon=260, ntime=16),
-        ChunkConfig(nlat=130, nlon=260, ntime=16),
+        #ChunkConfig(ntime=1, nlat=500, nlon=900),
+        #ChunkConfig(ntime=1, nlat=325, nlon=650),
+        ChunkConfig(ntime=1, nlat=250, nlon=450),
+        #ChunkConfig(ntime=1, nlat=500, nlon=300),
+        #ChunkConfig(ntime=1, nlat=260, nlon=260),
+        #ChunkConfig(ntime=1, nlat=130, nlon=260),
 
-        #ChunkConfig(nlat=500, nlon=900, ntime=24),
-        #ChunkConfig(nlat=325, nlon=650, ntime=24),
-        #ChunkConfig(nlat=500, nlon=300, ntime=24),
-        #ChunkConfig(nlat=260, nlon=260, ntime=24),
-        #ChunkConfig(nlat=130, nlon=260, ntime=24),
+        #ChunkConfig(ntime=8, nlat=500, nlon=900),
+        #ChunkConfig(ntime=8, nlat=325, nlon=650),
+        ChunkConfig(ntime=8, nlat=250, nlon=450),
+        #ChunkConfig(ntime=8, nlat=500, nlon=300),
+        #ChunkConfig(ntime=8, nlat=260, nlon=260),
+        #ChunkConfig(ntime=8, nlat=130, nlon=260),
 
-        ChunkConfig(nlat=500, nlon=900, ntime=32),
-        ChunkConfig(nlat=325, nlon=650, ntime=32),
-        ChunkConfig(nlat=500, nlon=300, ntime=32),
-        ChunkConfig(nlat=260, nlon=260, ntime=32),
-        ChunkConfig(nlat=130, nlon=260, ntime=32),
+        ChunkConfig(ntime=16, nlat=500, nlon=900),
+        ChunkConfig(ntime=16, nlat=325, nlon=650),
+        ChunkConfig(ntime=16, nlat=250, nlon=450),
+        ChunkConfig(ntime=16, nlat=500, nlon=300),
+        ChunkConfig(ntime=16, nlat=260, nlon=260),
+        ChunkConfig(ntime=16, nlat=130, nlon=260),
+
+        #ChunkConfig(ntime=24, nlat=500, nlon=900),
+        #ChunkConfig(ntime=24, nlat=325, nlon=650),
+        ChunkConfig(ntime=24, nlat=250, nlon=450),
+        #ChunkConfig(ntime=24, nlat=500, nlon=300),
+        #ChunkConfig(ntime=24, nlat=260, nlon=260),
+        #ChunkConfig(ntime=24, nlat=130, nlon=260),
+
+        ChunkConfig(ntime=32, nlat=500, nlon=900),
+        ChunkConfig(ntime=32, nlat=325, nlon=650),
+        ChunkConfig(ntime=32, nlat=250, nlon=450),
+        ChunkConfig(ntime=32, nlat=500, nlon=300),
+        ChunkConfig(ntime=32, nlat=260, nlon=260),
+        ChunkConfig(ntime=32, nlat=130, nlon=260),
         ]
     #'''
 
@@ -341,16 +348,23 @@ if __name__=="__main__":
 
     if print_table:
         ## print a markdown table of the chunk configuration information
-        col_labels = ["lat", "lon", "time", "size/chunk (MB)",
-            "N<sub>t</sub>", "N<sub>xy</sub>", "N<sub>xy</sub>/N<sub>t</sub>"]
+        col_labels = [
+            "lat", "lon", "time", "size/chunk (MB)",
+            "N<sub>t</sub>", "N<sub>xy</sub>",
+            "S<sub>t</sub>/S<sub>xy</sub> (x 10<sup>3</sup>)"
+            #"S<sub>t</sub> S<sub>xy</sub><sup>-1/2</sup> "
+            ]
         print(" | ".join(col_labels))
         print(" | ".join(["---" for _ in range(len(col_labels))]))
         for cc in chunking_cands:
-            ncy,ncx,nct = cc.chunk_layout(*full_grid_shape)
+            nct,ncx,ncy = cc.chunk_layout(*full_grid_shape)
+            sct,scx,scy = cc.as_tuple()
             print(" | ".join(map(str, [
                 cc.nlat, cc.nlon, cc.ntime,
                 cc.chunk_size_mb(dtype_size_bytes),
-                nct, ncy*ncx, f"{ncy*ncx/nct:.3f}"
+                nct, ncy*ncx,
+                f"{sct/(scy*scx)*1000:.3f}"
+                #f"{sct*(scy*scx)**(-0.5):.4f}"
                 ])))
 
     """ initialize the zarr store and load the initial subset """
