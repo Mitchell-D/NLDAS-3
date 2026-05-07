@@ -205,16 +205,16 @@ def plot_nldas3_chunk_polygons(nldas3_param_path, poly_npz_path,
     ps_ints.update(plot_spec_ints)
 
     ## download the parameter file if it doesn't exist already
-    if not nldas3_path.exists():
+    if not nldas3_param_path.exists():
         s3 = boto3.client("s3")
         s3.download_file(
             "nasa-waterinsight",
             "NLDAS3/static/NLDAS-3_dominant-soil-vegetation.nc",
-            nldas3_path.as_posix(),
+            nldas3_param_path.as_posix(),
             )
 
     ## extract geo coords and land mask from the parameter file
-    with nc.Dataset(nldas3_path, "r") as param_ds:
+    with nc.Dataset(nldas3_param_path, "r") as param_ds:
         nldas3_lats = param_ds["lat"][...]
         nldas3_lons = param_ds["lon"][...]
         ## class 14 corresponds to water
