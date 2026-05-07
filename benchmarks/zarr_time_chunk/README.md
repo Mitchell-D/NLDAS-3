@@ -11,7 +11,7 @@ based on a 1000x1800 subdomain of a single variable's daily data over
 for each of the tested chunk variations.
 
 <p align="center">
-   <img src="/scripts/figures/overlap_gfv1_nldas3_all.png" width=80%>
+   <img src="figures/poly_nldas3_chunks_500-900.png" width=80%>
 </p>
 
 The figure above illustrates the current chunk layout on the NLDAS-3
@@ -23,9 +23,8 @@ high compression ratios, and shouldn't be commonly queried anyway.
 Since only one time step is contained in daily netCDF files, the
 time axis has a chunk size of 1. Currently, 8,400 chunks must be
 queried and downloaded to acquire the 23-year period of record for
-a single pixel, which amounts to 15.12 GB of uncompressed data,
-about a 20 minute download.
-
+a single pixel, which amounts to 15.12 GB of uncompressed data needed
+to extract the 33.6 KB pixel column (about a 20 minute download).
 At the same time, a single timestep across the full spatial domain
 takes around 15 seconds to download ≈300 MB of uncompressed data.
 
@@ -48,7 +47,7 @@ will ultimately be a compromise between:
    - Chunks that are spatially larger are less efficient for querying
      a subset across time, and vice-versa.
 
-2. **chunk utilization vs chunk request overhead**
+2. **chunk utilization vs number of requests**
    - Small chunks have more request overhead, but are more adaptable
      to sparse access patterns.
 
@@ -70,28 +69,28 @@ lat (S<sub>y</sub>) | lon (S<sub>x</sub>) | time (S<sub>t</sub>) | size/chunk (M
 500 | 300 | 1 | 0.6 | 8400 | 507 | 0.007
 260 | 260 | 1 | 0.2704 | 8400 | 1125 | 0.015
 130 | 260 | 1 | 0.1352 | 8400 | 2250 | 0.030
---- | --- | --- | --- | --- | --- | ---
+| | | | | |
 500 | 900 | 8 | 14.4 | 1050 | 169 | 0.018
 325 | 650 | 8 | 6.76 | 1050 | 360 | 0.038
 250 | 450 | 8 | 3.6 | 1050 | 676 | 0.071
 500 | 300 | 8 | 4.8 | 1050 | 507 | 0.053
 260 | 260 | 8 | 2.1632 | 1050 | 1125 | 0.118
 130 | 260 | 8 | 1.0816 | 1050 | 2250 | 0.237
---- | --- | --- | --- | --- | --- | ---
+| | | | | |
 500 | 900 | 16 | 28.8 | 525 | 169 | 0.036
 325 | 650 | 16 | 13.52 | 525 | 360 | 0.076
 250 | 450 | 16 | 7.2 | 525 | 676 | 0.142
 500 | 300 | 16 | 9.6 | 525 | 507 | 0.107
 260 | 260 | 16 | 4.3264 | 525 | 1125 | 0.237
 130 | 260 | 16 | 2.1632 | 525 | 2250 | 0.473
---- | --- | --- | --- | --- | --- | ---
+| | | | | |
 500 | 900 | 24 | 43.2 | 350 | 169 | 0.053
 325 | 650 | 24 | 20.28 | 350 | 360 | 0.114
 250 | 450 | 24 | 10.8 | 350 | 676 | 0.213
 500 | 300 | 24 | 14.4 | 350 | 507 | 0.160
 260 | 260 | 24 | 6.4896 | 350 | 1125 | 0.355
 130 | 260 | 24 | 3.2448 | 350 | 2250 | 0.710
---- | --- | --- | --- | --- | --- | ---
+| | | | | |
 500 | 900 | 32 | 57.6 | 263 | 169 | 0.071
 325 | 650 | 32 | 27.04 | 263 | 360 | 0.151
 250 | 450 | 32 | 14.4 | 263 | 676 | 0.284
@@ -107,6 +106,10 @@ serve as a good basis for extrapolation to larger grids/time periods.
 
 ## benchmarking methodology
 
+<p align="center">
+  <img src="figures/access_pattern_schematic.png" width=90%>
+</p>
+
 First, a single-variable float32 (time, lat, lon) subgrid with size
 (1826, 1000, 1800) was created for each of the chunk layouts in the
 table, and stored as a ≈13.147 GB zarr array on the s3 bucket.
@@ -116,7 +119,9 @@ from 32 to 42 latitude and -97 to -79 longitude, an area containing
 
 A series of requests are issued to the s3 bucket, each using
 one of the four access patterns below. The total amount of time it
-takes to load all the data from each request is recorded.
+takes to load all the data from each request is recorded. The
+differences between these access patterns is illustrated by the
+figure above.
 
 1. random single pixel column
 2. random single time slice
