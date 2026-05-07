@@ -316,8 +316,8 @@ if __name__=="__main__":
     args = [{
         "nldas3_param_path":nldas3_path,
         "poly_npz_path":nzp,
-        "out_path_ints":fig_dir.joinpath(f"poly_{nzp.stem}.png"),
-        "out_path_polys":fig_dir.joinpath(f"int_{nzp.stem}.png"),
+        "out_path_ints":fig_dir.joinpath(f"int_{nzp.stem}.png"),
+        "out_path_polys":fig_dir.joinpath(f"poly_{nzp.stem}.png"),
         "plot_spec_ints":{
             "title":f"NLDAS-3 {cc}",
             },
