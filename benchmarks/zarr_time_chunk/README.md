@@ -28,7 +28,7 @@ to extract the 33.6 KB pixel column (about a 20 minute download).
 At the same time, a single timestep across the full spatial domain
 takes around 15 seconds to download ≈300 MB of uncompressed data.
 
-In fact, if the number of bytes per chunk were to say the same but
+In fact, if the number of bytes per chunk were to stay the same but
 the sizes of of chunk dimensions were proportional to the size of
 the period of record, daily data shaped (time, latitude, longitude)
 would have chunk size (75, 58, 104), and hourly data would have
@@ -59,7 +59,6 @@ the subscripted axes in the full 23-year period of record, and S
 indicates the number of pixels per chunk along the subscripted axes.
 S<sub>t</sub>/(S<sub>x</sub> S<sub>y</sub>) measures the ratio of
 time pixels per area pixel within a chunk.
-
 
 lat (S<sub>y</sub>) | lon (S<sub>x</sub>) | time (S<sub>t</sub>) | size/chunk (MB) | N<sub>t</sub> | N<sub>x</sub> N<sub>y</sub>  | S<sub>t</sub>/(S<sub>x</sub> S<sub>y</sub>)  (x 10<sup>3</sup>)
 --- | --- | --- | --- | --- | --- | ---
@@ -128,6 +127,11 @@ figure above.
 3. random single chunks
 4. several random chunks
 
+Each access experiment was repeated 64 times in random order, and
+using randomly-selected pixels, timesteps, or chunks depending on
+the test type. Since experiments were run simultaneously, bandwidth
+limitations should uniformly affect the results.
+
 We chose not to test selecting random small subsets since the
 performance will be highly sensitive to chunk boundaries, and as
 such results will be predictable from the above measurements and the
@@ -139,7 +143,7 @@ number of chunks intersected.
 </p>
 
 The figures above both compare the efficiency of indexing each
-chunking method across space and time. The efficiency calculation
+chunk layout across space and time. The efficiency calculation
 for the image on the left only counts points that are part of a
 single time step pixel column, while the image on the right assumes
 that all pixels within a chunk are utilized.
@@ -153,22 +157,32 @@ efficient at indexing across space when only one time step is
 parsed at a time, however even for spatial indexing, their advantage
 disappears when adjecent timesteps in the chunk can also be utilized.
 
-Curiously, when indexing across the spatial domain, smaller chunks
-like (32, 130, 260) (around 4.3 MB) are more efficient at getting
-sparse timestep data than larger chunks like (8, 500, 900), which
-is around 14.4 MB. This may have to do with network throttling.
-
 Configurations like (24, 250, 450), (24, 260, 260) seem to offer a
-decent middle ground given these observations.
+decent middle ground given these observations, however the axes are
+skewed by at least an order of magnitude. Even assuming full chunk
+utilization, the fastest throughputs indexing across time are less
+than half as fast as the median speed of tested configurations when
+indexing across space. This suggests that it may be reasonable to
+to lean more heavily toward even larger time chunks.
 
 <p align="center">
   <img src="figures/chunk-bench_StSxy-bitrate_pixel.png" width=45%>
   <img src="figures/chunk-bench_StSxy-bitrate_timestep.png" width=45%>
 </p>
 
-In these figures, we take a closer look at how the portion of time
-steps per chunk and the size of chunks affect their download
-bitrate.
+In these figures, we look at spatial and temporal access patterns
+separately in order to better understand how the portion of time
+steps per unit area in a chunk (here on the *aspect*) and the size
+of chunks impacts their throughput.
+
+The figure on the left clearly shows that as the ratio of time points
+per chunk increases,
+
+Curiously, when indexing across the spatial domain, smaller chunks
+like (16, 130, 260) (around 2.1 MB) are more efficient at getting
+sparse timestep data than larger chunks like (8, 500, 900), which
+is around 14.4 MB.
+
 
 <p align="center">
   <img src="figures/chunk-bench_csize-ceff.png" width=90%>
@@ -234,3 +248,14 @@ by the same latency overhead as all others. use the
 5. number of chunks with/without valid land
    (or mean valid points per chunk)
 6. points loaded/points included per watershed
+
+## end goals
+
+- develop a regression relationship between size/aspect configuration
+  based on benchmark observations
+
+- demonstrate how the number of chunk intersections is related to
+  the chunk shape and request shape; characterize alignment?
+
+- show the relationship between request size/shape, number of chunks
+  requested, and download time

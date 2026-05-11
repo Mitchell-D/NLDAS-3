@@ -173,7 +173,7 @@ def run_benchmark(zarr_url, test_type, var_label,
                 ]
             if debug:
                 print(f"Extracting chunks: {cslcs}")
-            ## record the total time and
+            ## record the total time and number of points downloaded
             point_count = 0
             t0_load = time.perf_counter()
             for cslc in cslcs:
@@ -266,57 +266,57 @@ if __name__=="__main__":
     ## daily
     #'''
     chunking_cands = [
-        #ChunkConfig(ntime=1, nlat=500, nlon=900),
-        #ChunkConfig(ntime=1, nlat=325, nlon=650),
-        ChunkConfig(ntime=1, nlat=250, nlon=450),
-        #ChunkConfig(ntime=1, nlat=500, nlon=300),
-        #ChunkConfig(ntime=1, nlat=260, nlon=260),
-        #ChunkConfig(ntime=1, nlat=130, nlon=260),
+        #ChunkConfig(1, 500, 900),
+        #ChunkConfig(1, 325, 650),
+        ChunkConfig(1, 250, 450),
+        #ChunkConfig(1, 500, 300),
+        #ChunkConfig(1, 260, 260),
+        #ChunkConfig(1, 130, 260),
 
-        #ChunkConfig(ntime=8, nlat=500, nlon=900),
-        #ChunkConfig(ntime=8, nlat=325, nlon=650),
-        ChunkConfig(ntime=8, nlat=250, nlon=450),
-        #ChunkConfig(ntime=8, nlat=500, nlon=300),
-        #ChunkConfig(ntime=8, nlat=260, nlon=260),
-        #ChunkConfig(ntime=8, nlat=130, nlon=260),
+        #ChunkConfig(8, 500, 900),
+        #ChunkConfig(8, 325, 650),
+        ChunkConfig(8, 250, 450),
+        #ChunkConfig(8, 500, 300),
+        #ChunkConfig(8, 260, 260),
+        #ChunkConfig(8, 130, 260),
 
-        ChunkConfig(ntime=16, nlat=500, nlon=900),
-        ChunkConfig(ntime=16, nlat=325, nlon=650),
-        ChunkConfig(ntime=16, nlat=250, nlon=450),
-        ChunkConfig(ntime=16, nlat=500, nlon=300),
-        ChunkConfig(ntime=16, nlat=260, nlon=260),
-        ChunkConfig(ntime=16, nlat=130, nlon=260),
+        ChunkConfig(16, 500, 900),
+        ChunkConfig(16, 325, 650),
+        ChunkConfig(16, 250, 450),
+        ChunkConfig(16, 500, 300),
+        ChunkConfig(16, 260, 260),
+        ChunkConfig(16, 130, 260),
 
-        #ChunkConfig(ntime=24, nlat=500, nlon=900),
-        #ChunkConfig(ntime=24, nlat=325, nlon=650),
-        ChunkConfig(ntime=24, nlat=250, nlon=450),
-        #ChunkConfig(ntime=24, nlat=500, nlon=300),
-        #ChunkConfig(ntime=24, nlat=260, nlon=260),
-        #ChunkConfig(ntime=24, nlat=130, nlon=260),
+        #ChunkConfig(24, 500, 900),
+        #ChunkConfig(24, 325, 650),
+        ChunkConfig(24, 250, 450),
+        #ChunkConfig(24, 500, 300),
+        #ChunkConfig(24, 260, 260),
+        #ChunkConfig(24, 130, 260),
 
-        ChunkConfig(ntime=32, nlat=500, nlon=900),
-        ChunkConfig(ntime=32, nlat=325, nlon=650),
-        ChunkConfig(ntime=32, nlat=250, nlon=450),
-        ChunkConfig(ntime=32, nlat=500, nlon=300),
-        ChunkConfig(ntime=32, nlat=260, nlon=260),
-        ChunkConfig(ntime=32, nlat=130, nlon=260),
+        ChunkConfig(32, 500, 900),
+        ChunkConfig(32, 325, 650),
+        ChunkConfig(32, 250, 450),
+        ChunkConfig(32, 500, 300),
+        ChunkConfig(32, 260, 260),
+        ChunkConfig(32, 130, 260),
         ]
     #'''
 
     ## hourly
     '''
     chunking_cands = [
-        ChunkConfig(nlat=500, nlon=900, ntime=6),
-        ChunkConfig(nlat=250, nlon=300, ntime=6),
-        ChunkConfig(nlat=130, nlon=130, ntime=6),
+        ChunkConfig(500, 900, 6),
+        ChunkConfig(250, 300, 6),
+        ChunkConfig(130, 130, 6),
 
-        ChunkConfig(nlat=500, nlon=900, ntime=24),
-        ChunkConfig(nlat=250, nlon=300, ntime=24),
-        ChunkConfig(nlat=130, nlon=130, ntime=24),
+        ChunkConfig(500, 900, 24),
+        ChunkConfig(250, 300, 24),
+        ChunkConfig(130, 130, 24),
 
-        ChunkConfig(nlat=500, nlon=900, ntime=48),
-        ChunkConfig(nlat=250, nlon=300, ntime=48),
-        ChunkConfig(nlat=130, nlon=130, ntime=48),
+        ChunkConfig(500, 900, 48),
+        ChunkConfig(250, 300, 48),
+        ChunkConfig(130, 130, 48),
         ]
     '''
 

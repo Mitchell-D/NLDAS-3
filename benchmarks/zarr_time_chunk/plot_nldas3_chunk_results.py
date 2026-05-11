@@ -6,332 +6,7 @@ from matplotlib.colors import ListedColormap
 from pathlib import Path
 
 from ChunkConfig import ChunkConfig
-
-def plot_hists(counts:list, labels:list, bin_coords:np.array, normalize=False,
-        line_colors:list=None, plot_spec:dict={}, show=False, fig_path=None):
-    """
-    Plot one or more histograms on a single pane
-
-    :@param counts: List of 1D arrays representing the binned counts
-    :@param labels: List of string labels corresponding to each histogram
-    :@param bin_mins: List of 2-tuple (min, max) data coordinate values for
-        each histogram. The minimum should be the minimum value of the first
-        bin, and the maximum should be the upper value of the last bin.
-    :@param plot_spec: Dict of configuration options for the plot
-    """
-    ps = {"xlabel":"", "ylabel":"", "linewidth":2, "text_size":12,
-            "title":"", "dpi":80, "norm":None,"figsize":(12,12),
-            "legend_ncols":1, "line_opacity":1, "cmap":"hsv",
-            "label_fontsize":14, "title_fontsize":20, "legend_fontsize":14,
-            "xscale":"linear", "yscale":"linear", "tick_fontsize":14,
-            }
-    ps.update(plot_spec)
-    fig,ax = plt.subplots()
-    cm = matplotlib.cm.get_cmap(ps.get("cmap"), len(counts))
-
-    if not ps.get("hlines") is None:
-        for hl in ps.get("hlines"):
-            hlparams = {"color":"black", "linewidth":ps.get("linewidth")}
-            if isinstance(hl, (list,tuple)) and len(hl)==2:
-                hl,hlpnew = hl
-                hlparams.update(hlpnew)
-            ax.axhline(hl, **hlparams)
-    if not ps.get("vlines") is None:
-        for vl in ps.get("vlines"):
-            vlparams = {"color":"black", "linewidth":ps.get("linewidth")}
-            if isinstance(vl, (list,tuple)) and len(vl)==2:
-                vl,vlpnew = vl
-                vlparams.update(vlpnew)
-            ax.axvline(vl, **vlparams)
-
-    for i,(carr,label,bins) in enumerate(zip(counts,labels,bin_coords)):
-        assert len(carr.shape) == 1, f"counts array must be 1D, {carr.shape=}"
-        #bins = (np.arange(carr.size)+.5)/carr.size * (bmax-bmin) + bmin
-        color = cm(i) if not line_colors else line_colors[i]
-        if normalize:
-            carr = carr / np.sum(carr)
-        ax.plot(bins, carr, label=label, linewidth=ps.get("linewidth"),
-                color=color, alpha=ps.get("line_opacity"))
-
-    if not ps.get("ylim") is None:
-        ax.set_ylim(*ps.get("ylim"))
-    if not ps.get("xlim") is None:
-        ax.set_xlim(*ps.get("xlim"))
-
-    ax.set_xlabel(ps.get("xlabel"), fontsize=ps.get("label_fontsize"))
-    ax.set_ylabel(ps.get("ylabel"), fontsize=ps.get("label_fontsize"))
-    ax.set_title(ps.get("title"), fontsize=ps.get("title_fontsize"))
-    ax.legend(ncol=ps.get("legend_ncols"), fontsize=ps.get("legend_fontsize"))
-    ax.set_xscale(ps.get("xscale"))
-    ax.set_yscale(ps.get("yscale"))
-    ax.tick_params(axis="both",which="major",labelsize=ps.get("tick_fontsize"))
-    ax.tick_params(axis="both",which="minor",labelsize=ps.get("tick_fontsize"))
-
-    if show:
-        plt.show()
-    if fig_path:
-        fig.set_size_inches(*ps.get("figsize"))
-        fig.savefig(fig_path.as_posix(),bbox_inches="tight",dpi=ps.get("dpi"))
-    plt.close()
-    return
-
-def plot_nested_bars(data_dict:dict, labels:dict={}, plot_error_bars=False,
-        bar_colors:list=None, plot_spec:dict={}, show=False, fig_path=None,
-        group_order:list=None, bar_order:list=None):
-    """
-    Plot a bar graph of metrics nested 2 levels deep, with optional error bars.
-
-    :@param data_dict: Dict nested 2 layers deep, where the first layer
-        identifies the bar grouping, and the second layer identifies the
-        subcategory of a data point within each bar grouping. The second layer
-        should map to a number if plot_error_bars is False, or a 2-tuple of
-        [data, error_bar_magnitude] if plot_error_bars is True.
-    :@param labels: dict of optional labels to replace data_dict keys in the
-        legend or x-axis, if the data_dict key matches a labels key
-    :@param plot_error_bars: Determines whether to expect a 2-tuple including
-        error bar data per bar, as specified above
-    :@param plot_spec: Dict of configuration options for the plot
-    """
-    ps = {"xlabel":"", "ylabel":"", "text_size":12, "title":"", "dpi":80,
-            "figsize":(12,12), "legend_ncols":1, "line_opacity":1,
-            "cmap":"hsv", "label_fontsize":14, "title_fontsize":20,
-            "legend_fontsize":14, "bar_spacing":1}
-    ps.update(plot_spec)
-    fig,ax = plt.subplots()
-
-    ## group keys
-    gkeys = list(data_dict.keys()) if group_order is None else group_order
-    ngroups = len(gkeys)
-    group_starts = np.arange(ngroups)
-    assert all(set(data_dict[k])==set(data_dict[gkeys[0]]) for k in gkeys[1:])
-    ## bar keys
-    bkeys = list(data_dict[gkeys[0]]) if bar_order is None else bar_order
-    cm = matplotlib.cm.get_cmap(ps.get("cmap"), len(bkeys))
-
-    bwidth = ps.get("bar_width", 1/(len(bkeys)+ps.get("bar_spacing")))
-
-    bar_plots = []
-    err_plots = []
-    offset = 0
-    for bix,bk in enumerate(bkeys):
-        if plot_error_bars:
-            tmp_data = [data_dict[gk][bk][0] for gk in gkeys]
-            tmp_err = [data_dict[gk][bk][1] for gk in gkeys]
-        else:
-            tmp_data = [data_dict[gk][bk] for gk in gkeys]
-            tmp_err = None
-        bar_plots.append(ax.bar(
-                group_starts + offset,
-                tmp_data,
-                color=cm(bix) if bar_colors is None else bar_colors[bix],
-                width=bwidth,
-                label=labels.get(bk,bk),
-                ))
-        if plot_error_bars:
-            err_plots.append(ax.errorbar(
-                    group_starts + offset,
-                    tmp_data,
-                    yerr=tmp_err,
-                    fmt=ps.get("err_fmt","o"),
-                    color=ps.get("err_color","black"),
-                    ))
-        offset += bwidth
-
-    ax.set_xticks(
-            group_starts+bwidth/2, [labels.get(gk,gk) for gk in gkeys],
-            rotation=ps.get("xtick_rotation", 0),
-            fontsize=ps.get("xtick_fontsize", ps.get("label_fontsize")),
-            )
-    plt.yticks(fontsize=ps.get("label_fontsize"))
-
-    ax.set_xlabel(ps.get("xlabel"), fontsize=ps.get("label_fontsize"))
-    ax.set_ylabel(ps.get("ylabel"), fontsize=ps.get("label_fontsize"))
-    if not ps.get("ylim") is None:
-        ax.set_ylim(*ps.get("ylim"))
-    ax.set_title(ps.get("title"), fontsize=ps.get("title_fontsize"))
-    ax.legend(ncol=ps.get("legend_ncols"), fontsize=ps.get("legend_fontsize"))
-
-    if show:
-        plt.show()
-    if fig_path:
-        fig.set_size_inches(*ps.get("figsize"))
-        fig.savefig(fig_path.as_posix(),bbox_inches="tight",dpi=ps.get("dpi"))
-    plt.close()
-    return
-
-def plot_scatter(x, y, size=None, color=None, xerr=None, yerr=None,
-        labels=None, plot_spec={}, fig_path=None, show=False):
-    """
-    scatter plot with optional error bars and point labels, including optional
-    label collision avoidance.
-    """
-    ps = {
-        "xlabel":"", "ylabel":"", "marker_size":4, "dpi":200, "cmap":"jet",
-        "text_size":12, "title":"", "norm":"linear", "marker":"o",
-        "cbar_shrink":1., "map_linewidth":2, "title_fontsize":14,
-        "legend_fontsize":14, "tick_fontsize":10, "legend_ncols":1,
-        ## error bar defaults
-        "errorbar_fmt":"none", "errorbar_ecolor":"black",
-        "errorbar_elinewidth":1, "errorbar_capsize":2,
-        ## label defaults
-        "label_offset":(2,2), "label_fontsize":10, "label_color":"black",
-        "label_ha":"right", "label_va":"bottom",
-        ## collision avoidance
-        "avoid_label_overlap":True, "adjust_text_expand":(1.05,1.2),
-        "adjust_text_force":(0.1, 0.25),
-        "adjust_text_arrowprops":{"arrowstyle":"-", "color":"gray", "lw":0.5},
-        ## legend
-        "use_point_legend":False, "legend_loc":"best",
-        "legend_marker_scale":1.5,
-        ## color bar
-        "use_colorbar":False, "cbar_label":None, "cbar_label_fontsize":12,
-        "cbar_tick_fontsize":10,
-        }
-
-    ps.update(plot_spec)
-    plt.rcParams.update({"font.size": ps["text_size"]})
-
-    fig, ax = plt.subplots(figsize=ps.get("fig_size"))
-
-    sc = ax.scatter(
-        x=x, y=y,
-        s=size,
-        c=color,
-        marker=ps.get("marker"),
-        cmap=ps.get("cmap"),
-        vmin=ps.get("vmin"),
-        vmax=ps.get("vmax"),
-        norm=ps.get("norm"),
-        linewidths=ps.get("linewidths"),
-        )
-
-    if ps.get("use_colorbar") and color is not None:
-        try:
-            ## check if numeric
-            c_array = np.asarray(color)
-            if np.issubdtype(c_array.dtype, np.number):
-                cbar = fig.colorbar(sc, ax=ax, shrink=ps.get("cbar_shrink"))
-                if ps.get("cbar_label"):
-                    cbar.set_label(
-                        ps.get("cbar_label"),
-                        fontsize=ps.get("cbar_label_fontsize")
-                        )
-                cbar.ax.tick_params(
-                    labelsize=ps.get("cbar_tick_fontsize")
-                    )
-            else:
-                print("Colorbar skipped: 'color' is not numeric.")
-        except Exception:
-            print("Colorbar skipped: could not interpret 'color'.")
-
-    ## optional error bars
-    if xerr is not None or yerr is not None:
-        ax.errorbar(
-            x, y,
-            xerr=xerr,
-            yerr=yerr,
-            fmt=ps.get("errorbar_fmt"),
-            ecolor=ps.get("errorbar_ecolor"),
-            elinewidth=ps.get("errorbar_elinewidth"),
-            capsize=ps.get("errorbar_capsize"),
-            zorder=0
-            )
-
-    texts = []
-
-    ## optional labels
-    if labels is not None:
-        dx,dy = ps.get("label_offset")
-        for xi,yi,lab in zip(x,y,labels):
-            txt = ax.annotate(
-                str(lab),
-                (xi, yi),
-                textcoords="offset points",
-                xytext=(dx, dy),
-                fontsize=ps.get("point_label_fontsize", 10),
-                color=ps.get("label_color"),
-                ha=ps.get("label_ha"),
-                va=ps.get("label_va"),
-                )
-            texts.append(txt)
-
-    # optional collision avoidance
-    if ps.get("avoid_label_overlap") and texts:
-        try:
-            from adjustText import adjust_text
-
-            adjust_text(
-                texts,
-                ax=ax,
-                expand=ps.get("adjust_text_expand"),
-                force_text=ps.get("adjust_text_force"),
-                arrowprops=ps.get("adjust_text_arrowprops"),
-                )
-        except ImportError:
-            print("adjustText not installed; skipping collision avoidance.")
-
-    ## point legend
-    if ps.get("use_point_legend") and labels is not None:
-        handles = []
-        seen = {}
-
-        # normalize color handling
-        if hasattr(color, "__len__"):
-            colors = color
-        else:
-            colors = [color] * len(x)
-
-        for xi, yi, lab, ci in zip(x, y, labels, colors):
-            key = (lab, ci, ps.get("marker"))
-
-            if key in seen:
-                continue
-
-            handle = Line2D(
-                [0], [0],
-                marker=ps.get("marker"),
-                color="none",
-                markerfacecolor=ci,
-                markersize=ps.get("legend_marker_scale")*ps.get("marker_size"),
-                label=str(lab)
-                )
-
-            handles.append(handle)
-            seen[key] = True
-
-        ax.legend(
-            handles=handles,
-            fontsize=ps.get("legend_fontsize"),
-            ncol=ps.get("legend_ncols"),
-            loc=ps.get("legend_loc")
-            )
-
-    ax.set_xlabel(ps.get("xlabel"), fontsize=ps.get("label_fontsize"))
-    ax.set_ylabel(ps.get("ylabel"), fontsize=ps.get("label_fontsize"))
-    ax.set_title(ps.get("title"), fontsize=ps.get("title_fontsize"))
-
-    ax.tick_params(
-        axis="both", which="major", labelsize=ps.get("tick_fontsize")
-        )
-    ax.tick_params(axis="both", which="minor",
-                   labelsize=ps.get("tick_fontsize"))
-
-    if show:
-        plt.show()
-
-    if fig_path:
-        fig.savefig(
-            fig_path.as_posix(),
-            bbox_inches="tight",
-            dpi=ps.get("dpi")
-            )
-
-    plt.close()
-
-def get_listed_cmap(size, cmap="gist_rainbow", truncate_extremes=0):
-    """ """
-    ref_cmap = plt.get_cmap(cmap, size + 2*truncate_extremes)
-    return ListedColormap([ref_cmap(i+truncate_extremes) for i in range(size)])
+from plotting import plot_scatter,get_listed_cmap
 
 if __name__=="__main__":
     data_dir = Path("data")
@@ -348,6 +23,8 @@ if __name__=="__main__":
     plot_StSxy_bitrate_scatter = True
     plot_land_per_chunk = True
     plot_pareto = True
+    plot_size_aspect = True
+    plot_size_nchunks = True
 
     cl_cmap = get_listed_cmap(
             size=len(all_clabels),
@@ -359,6 +36,21 @@ if __name__=="__main__":
     npz_dir_path = data_dir.joinpath("polys")
     int_fill = 999999999
 
+    ## download the parameter file if it doesn't exist already
+    if not nldas3_param_path.exists():
+        s3 = boto3.client("s3")
+        s3.download_file(
+            "nasa-waterinsight",
+            "NLDAS3/static/NLDAS-3_dominant-soil-vegetation.nc",
+            nldas3_param_path.as_posix(),
+            )
+    ## extract geo coords and land mask from the parameter file
+    with nc.Dataset(nldas3_param_path, "r") as param_ds:
+        nldas3_lats = param_ds["lat"][...]
+        nldas3_lons = param_ds["lon"][...]
+        ## class 14 corresponds to water
+        nldas3_land_mask = ~(param_ds["Soiltype_inst"][...] == 14)
+
     ## scatter plot St/Sxy vs time/point for each experiment
     if plot_StSxy_bitrate_scatter:
         for tl in tlabels:
@@ -369,7 +61,7 @@ if __name__=="__main__":
                 if vstr not in plot_variables:
                     continue
                 stime,slat,slon = tuple(map(int, cstr.split(".")))
-                cc = ChunkConfig(ntime=stime, nlat=slat, nlon=slon)
+                cc = ChunkConfig(stime, slat, slon)
 
                 #sratios.append(stime / (slat*slon))
                 sratios.append(stime / (slat*slon)**(1/2))
@@ -391,20 +83,23 @@ if __name__=="__main__":
                 yerr=(br_p50-br_p25, br_p75-br_p50),
                 labels=[cc.as_tuple() for cc in ccs],
                 plot_spec={
-                    "title":f"Download Efficiency per Chunk Aspect ({tl})" + \
+                    "title":f"Download Efficiency wrt Chunk Aspect ({tl})" + \
                             "\nColored by Size in MB",
-                    "ylabel":"Median Download (px/sec) (25-75 pct)",
+                    "ylabel":"Median Selected Pixels per Second (25-75 pct)",
                     "xlabel":"Timesteps per Area of a Chunk " + \
                             "[St Sxy^(-1/2)]",
                     "xscale":"log",
-                    "point_label_fontsize":3,
+                    "point_label_fontsize":3.5,
+                    "point_label_rotation":-30,
+                    "tight_layout":True,
                     "avoid_label_overlap":False,
                     "errorbar_elinewidth":1,
                     "errorbar_capsize":2,
+                    "errorbar_ecolor":"gray",
                     "label_ha":"center",
                     "label_va":"center",
                     "use_colorbar":True,
-                    "cbar_label":"Chunk Size (MB)",
+                    "cbar_label":"Chunk Size (log(size); MB)",
                     "cmap":"rainbow",
                     "norm":"log",
                     },
@@ -423,14 +118,17 @@ if __name__=="__main__":
                 labels=[cc.as_tuple() for cc in ccs],
                 plot_spec={
                     "title":f"Download Efficiency wrt Chunk Size ({tl})" + \
-                            "\nColored by Times per Area",
-                    "ylabel":"Median Download (px/sec) (25-75pct)",
+                            "\nColored by Times per Area [St Sxy^(-1/2)]",
+                    "ylabel":"Median Selected Pixels per Second (25-75pct)",
                     "xlabel":"Chunk Size (MB)",
                     "xscale":"log",
-                    "point_label_fontsize":3,
+                    "point_label_fontsize":3.5,
+                    "point_label_rotation":-30,
+                    "tight_layout":True,
                     "avoid_label_overlap":False,
                     "errorbar_elinewidth":1,
                     "errorbar_capsize":2,
+                    "errorbar_ecolor":"gray",
                     "label_ha":"center",
                     "label_va":"center",
                     "use_colorbar":True,
@@ -439,7 +137,7 @@ if __name__=="__main__":
                     #"norm":"log",
                     },
                 fig_path=fig_dir.joinpath(
-                    f"chunk-bench_csize-bitrate{tl}.png"),
+                    f"chunk-bench_csize-bitrate_{tl}.png"),
                 )
 
             plot_scatter(
@@ -456,10 +154,13 @@ if __name__=="__main__":
                     "ylabel":"Median Download Time (sec) (25-75pct)",
                     "xlabel":"Chunk Size (MB)",
                     "xscale":"log",
-                    "point_label_fontsize":3,
+                    "point_label_fontsize":3.5,
+                    "point_label_rotation":-45,
+                    "tight_layout":True,
                     "avoid_label_overlap":False,
                     "errorbar_elinewidth":1,
                     "errorbar_capsize":2,
+                    "errorbar_ecolor":"gray",
                     "label_ha":"center",
                     "label_va":"center",
                     "use_colorbar":True,
@@ -471,7 +172,7 @@ if __name__=="__main__":
                     f"chunk-bench_csize-dltime_{tl}.png"),
                 )
 
-    if plot_pareto:
+    if plot_pareto or plot_size_aspect or plot_size_nchunks:
         pdict = {}
         ## make a dict with all relevant collected results from each experiment
         for tl in tlabels:
@@ -480,8 +181,12 @@ if __name__=="__main__":
                 "size_ratios":[],
                 "bitrate_pct":[],
                 "dltime_pct":[],
+                "point_count":[],
                 "bitrate_full_pct":[],
+                "unq_sizes":{},
                 "ccs":[],
+                "nchunks":[],
+                "nchunks_partial":[],
                 }
             br_pct,br_full_pct,dt_pct = [],[],[]
             clabels = list(sorted(results[tl].keys()))
@@ -495,14 +200,47 @@ if __name__=="__main__":
                 psubdict["size_ratios"].append(stime / (slat*slon)**(1/2))
                 pcount = np.array(results[tl][cl]["point_count"])
                 dt_load = np.array(results[tl][cl]["dt_load"])
-                cc = ChunkConfig(ntime=stime, nlat=slat, nlon=slon)
+                cc = ChunkConfig(stime, slat, slon)
                 psubdict["ccs"].append(cc)
+                psubdict["point_count"].append(np.sum(pcount))
+
+                ## currently using ratio to simulate average
+                if tl == "chunk":
+                    nchunks = 1
+                    nchunks_partial = 1
+                elif tl == "pixel":
+                    nchunks = cc.intersections(
+                            grid_shape=(1826,1000,1800),
+                            subset_shape=(1,1000,1800),
+                            )[2]
+                    nchunks_partial = 1826 / cc.cvec[0]
+                elif tl == "timestep":
+                    nchunks = cc.intersections(
+                            grid_shape=(1826,1000,1800),
+                            subset_shape=(1826,1,1),
+                            )[2]
+                    nchunks_partial = 1000 / cc.cvec[1] * 1800 / cc.cvec[2]
+                elif tl == "multichunk":
+                    nchunks = np.average([
+                        v["nchunks"] for v in results[tl][cl]["test_kwargs"]
+                        ])
+                    nchunks_partial = nchunks
+                else:
+                    raise ValueError(f"test label not supported: {tl}")
+                psubdict["nchunks"].append(nchunks)
+                psubdict["nchunks_partial"].append(nchunks_partial)
+
+                ## percentiles of bit rate
                 br_pct.append(np.percentile(pcount/dt_load, [25, 50, 75]))
                 br_full_pct.append(np.percentile(
-                    np.prod(cc.as_tuple())/dt_load,
+                    nchunks_partial*np.prod(cc.as_tuple()) / dt_load,
                     [25, 50, 75]
                     ))
+                ## percentiles of elapsed time
                 dt_pct.append(np.percentile(dt_load, [25, 50, 75]))
+                ## percentiles of elapsed time per payload size
+                #for p,n in zip(*np.unique(pcount, return_counts=True)):
+                #    print(p, n)
 
             psubdict["bitrate_full_pct"] = list(map(
                 np.asarray, zip(*br_full_pct)))
@@ -510,16 +248,17 @@ if __name__=="__main__":
             psubdict["dltime_pct"]  = list(map(np.asarray, zip(*dt_pct)))
             pdict[tl] = psubdict
 
-        ## pixel vs timestep
+        ## pixel column vs timesteps pareto front
 
-        pres = pdict["pixel"]
-        tres = pdict["timestep"]
-        shared_ccs = [cc for cc in pres["ccs"] if cc in tres["ccs"]]
-
+        ## percentiles for all chunk configs shared between
+        shared_ccs = sorted([
+            cc for cc in pdict["pixel"]["ccs"]
+            if cc in pdict["timestep"]["ccs"] and cc in pdict["chunk"]["ccs"]
+            ],key=lambda cc:cc.as_tuple())
         pp25,pp50,pp75,csize = list(map(np.asarray, zip(*[
             (p25,p50,p75,float(np.prod(cc.as_tuple())))
             for p25,p50,p75,cc in sorted(
-                zip(*pres["bitrate_full_pct"], pres["ccs"]),
+                zip(*pdict["pixel"]["bitrate_full_pct"],pdict["pixel"]["ccs"]),
                 key=lambda t:t[-1].as_tuple(),
                 )
             if cc in shared_ccs
@@ -527,46 +266,234 @@ if __name__=="__main__":
         tp25,tp50,tp75 = list(map(np.asarray, zip(*[
             (p25,p50,p75)
             for p25,p50,p75,cc in sorted(
-                zip(*tres["bitrate_full_pct"], tres["ccs"]),
+                zip(*pdict["timestep"]["bitrate_full_pct"],
+                    pdict["timestep"]["ccs"]),
+                key=lambda t:t[-1].as_tuple()
+                )
+            if cc in shared_ccs
+            ])))
+        cp25,cp50,cp75 = list(map(np.asarray, zip(*[
+            (p25,p50,p75)
+            for p25,p50,p75,cc in sorted(
+                zip(*pdict["chunk"]["bitrate_full_pct"],pdict["chunk"]["ccs"]),
+                key=lambda t:t[-1].as_tuple()
+                )
+            if cc in shared_ccs
+            ])))
+        mp25,mp50,mp75 = list(map(np.asarray, zip(*[
+            (p25,p50,p75)
+            for p25,p50,p75,cc in sorted(
+                zip(*pdict["multichunk"]["bitrate_full_pct"],
+                    pdict["multichunk"]["ccs"]),
                 key=lambda t:t[-1].as_tuple()
                 )
             if cc in shared_ccs
             ])))
 
-        plot_scatter(
-            x=tp50,
-            #x=np.array(sizes)**(1/3),
-            y=pp50,
-            #size=np.array(sizes)/30000,
-            color=np.array(csize)*4/1000**2,
-            xerr=(tp50-tp25, tp75-tp50),
-            yerr=(pp50-pp25, pp75-pp50),
-            labels=[cc.as_tuple() for cc in shared_ccs],
-            plot_spec={
-                "title":f"Chunk Efficiency wrt Area and Time\n" + \
-                    "(assuming full chunk utilization)",
-                "ylabel":"Efficiency Across Time (px/s) (25-50pct)",
-                "xlabel":"Efficiency Across Space (px/s (25-50pct))",
-                "xscale":"linear",
-                "point_label_fontsize":3,
-                "avoid_label_overlap":False,
-                "errorbar_elinewidth":1,
-                "errorbar_capsize":2,
-                "label_ha":"center",
-                "label_va":"center",
-                "use_colorbar":True,
-                "cbar_label":"Chunk Size (MB)",
-                "cmap":"rainbow",
-                "norm":"log",
-                },
-            fig_path=fig_dir.joinpath(
-                f"chunk-bench_pareto-timestep-pixel_full-chunk.png"),
-            )
+        if plot_pareto:
+            plot_scatter(
+                x=tp50,
+                #x=np.array(sizes)**(1/3),
+                y=pp50,
+                #size=np.array(sizes)/30000,
+                color=np.array(csize)*4/1000**2,
+                xerr=(tp50-tp25, tp75-tp50),
+                yerr=(pp50-pp25, pp75-pp50),
+                labels=[cc.as_tuple() for cc in shared_ccs],
+                plot_spec={
+                    "title":f"Chunk Throughput wrt Aspect\n" + \
+                        "(assuming full chunk utilization)",
+                    "ylabel":"Efficiency Across Time (px/s) (25-50pct)",
+                    "xlabel":"Efficiency Across Space (px/s (25-50pct))",
+                    "point_label_fontsize":3.5,
+                    "point_label_rotation":-30,
+                    "tight_layout":True,
+                    "avoid_label_overlap":False,
+                    "adjust_text_expand":(2.0,2.0),
+                    "adjust_text_force":(4.05, 4.05),
+                    "adjust_text_arrowprops":{
+                        "arrowstyle":"-", "color":"gray", "lw":0.5},
+                    "errorbar_elinewidth":1,
+                    "errorbar_capsize":2,
+                    "errorbar_ecolor":"gray",
+                    "label_ha":"center",
+                    "label_va":"center",
+                    "use_colorbar":True,
+                    "cbar_label":"Chunk Size (MB)",
+                    "cmap":"rainbow",
+                    "norm":"log",
+                    },
+                fig_path=fig_dir.joinpath(
+                    f"chunk-bench_pareto-timestep-pixel_full-chunk.png"),
+                )
+
+        if plot_size_aspect:
+            plot_scatter(
+                x=[np.log10(cc.size*4/1000**2) for cc in shared_ccs], ## mb
+                y=[cc.cvec[0]*np.prod(cc.cvec[1:3])**(-0.5)
+                   for cc in shared_ccs],
+                color=tp50 / 1e6,
+                size=128,
+                #size=pp50 / 500,
+                #xerr=(tp50-tp25, tp75-tp50),
+                #yerr=(pp50-pp25, pp75-pp50),
+                labels=[cc.as_tuple() for cc in shared_ccs],
+                plot_spec={
+                    "title":f"Chunk Size and Aspect wrt Throughput (px/s)" + \
+                        "\n(assumes full chunk utilization)",
+                    "ylabel":"Chunk Aspect (St (SxSy)^-0.5)",
+                    "xlabel":"Chunk log(size) in MB",
+                    "point_label_fontsize":3.5,
+                    "tight_layout":True,
+                    "avoid_label_overlap":False,
+                    "adjust_text_expand":(2.0,2.0),
+                    "adjust_text_force":(4.05, 4.05),
+                    "adjust_text_arrowprops":{
+                        "arrowstyle":"-", "color":"gray", "lw":0.5},
+                    "errorbar_elinewidth":1,
+                    "errorbar_capsize":2,
+                    "errorbar_ecolor":"gray",
+                    "label_ha":"center",
+                    "label_va":"center",
+                    "use_colorbar":True,
+                    #"cbar_label":"Spatial throughput (px/s)\n" + \
+                    #    "Point size indicates time throughput",
+                    "cbar_label":"Spatial throughput (1e6 px/s)",
+                    "cbar_orient":"horizontal",
+                    "cmap":"rainbow",
+                    "vmin":0,
+                    #"vmax":1,
+                    },
+                fig_path=fig_dir.joinpath(
+                    f"chunk-bench_pareto-size-aspect_full-chunk_area.png"),
+                )
+            plot_scatter(
+                x=[np.log10(cc.size*4/1000**2) for cc in shared_ccs], ## mb
+                y=[cc.cvec[0]*np.prod(cc.cvec[1:3])**(-0.5)
+                   for cc in shared_ccs],
+                color=pp50 / 1e6,
+                size=128,
+                #size=tp50 / 500,
+                #xerr=(tp50-tp25, tp75-tp50),
+                #yerr=(pp50-pp25, pp75-pp50),
+                labels=[cc.as_tuple() for cc in shared_ccs],
+                plot_spec={
+                    "title":f"Chunk Size and Aspect wrt Throughput (px/s)" + \
+                        "\n(assumes full chunk utilization)",
+                    "ylabel":"Chunk Aspect (St (SxSy)^-0.5)",
+                    "xlabel":"Chunk log(size) in MB",
+                    "point_label_fontsize":3.5,
+                    "tight_layout":True,
+                    "avoid_label_overlap":False,
+                    "adjust_text_expand":(2.0,2.0),
+                    "adjust_text_force":(4.05, 4.05),
+                    "adjust_text_arrowprops":{
+                        "arrowstyle":"-", "color":"gray", "lw":0.5},
+                    "errorbar_elinewidth":1,
+                    "errorbar_capsize":2,
+                    "errorbar_ecolor":"gray",
+                    "label_ha":"center",
+                    "label_va":"center",
+                    "use_colorbar":True,
+                    "cbar_label":"Temporal throughput (1e6 px/s)",
+                    "cbar_orient":"horizontal",
+                    "cmap":"rainbow",
+                    "vmin":0,
+                    #"vmax":.3,
+                    },
+                fig_path=fig_dir.joinpath(
+                    f"chunk-bench_pareto-size-aspect_full-chunk_time.png"),
+                )
+            plot_scatter(
+                x=[np.log10(cc.size*4/1000**2) for cc in shared_ccs], ## mb
+                y=[cc.cvec[0]*np.prod(cc.cvec[1:3])**(-0.5)
+                   for cc in shared_ccs],
+                color=cp50 / 1e6,
+                size=128,
+                #size=tp50 / 500,
+                #xerr=(tp50-tp25, tp75-tp50),
+                #yerr=(pp50-pp25, pp75-pp50),
+                labels=[cc.as_tuple() for cc in shared_ccs],
+                plot_spec={
+                    "title":f"Chunk Size and Aspect wrt Throughput (px/s)" + \
+                        "\n(assumes full chunk utilization)",
+                    "ylabel":"Chunk Aspect (St (SxSy)^-0.5)",
+                    "xlabel":"Chunk log(size) in MB",
+                    "point_label_fontsize":3.5,
+                    "tight_layout":True,
+                    "avoid_label_overlap":False,
+                    "adjust_text_expand":(2.0,2.0),
+                    "adjust_text_force":(4.05, 4.05),
+                    "adjust_text_arrowprops":{
+                        "arrowstyle":"-", "color":"gray", "lw":0.5},
+                    "errorbar_elinewidth":1,
+                    "errorbar_capsize":2,
+                    "errorbar_ecolor":"gray",
+                    "label_ha":"center",
+                    "label_va":"center",
+                    "use_colorbar":True,
+                    "cbar_label":"Chunk throughput (1e6 px/s)",
+                    "cbar_orient":"horizontal",
+                    "cmap":"rainbow",
+                    "vmin":0,
+                    #"vmax":1.,
+                    },
+                fig_path=fig_dir.joinpath(
+                    f"chunk-bench_pareto-size-aspect_full-chunk_chunk.png"),
+                )
+
+        if plot_size_nchunks:
+            all_p50 = np.concatenate([cp50, pp50, tp50, mp50], axis=0)
+            nchunks = [
+                *pdict["chunk"]["nchunks_partial"],
+                *pdict["pixel"]["nchunks_partial"],
+                *pdict["timestep"]["nchunks_partial"],
+                *pdict["multichunk"]["nchunks_partial"],
+                ]
+            plot_scatter(
+                x=[np.log10(cc.size*4/1000**2) for cc in shared_ccs]*4, ## mb
+                y=np.log10(nchunks),
+                color=all_p50 / 1e6,
+                size=128,
+                #size=pp50 / 500,
+                #xerr=(tp50-tp25, tp75-tp50),
+                #yerr=(pp50-pp25, pp75-pp50),
+                labels=[cc.as_tuple() for cc in shared_ccs]*4,
+                plot_spec={
+                    "title":f"Chunk Size and Count wrt Throughput (px/s)" + \
+                        "\n(assumes full chunk utilization)",
+                    "ylabel":"Chunks log(count)",
+                    "xlabel":"Chunk log(size) in MB",
+                    "point_label_fontsize":3.5,
+                    "point_label_rotation":30,
+                    "tight_layout":True,
+                    "avoid_label_overlap":False,
+                    "adjust_text_expand":(2.0,2.0),
+                    "adjust_text_force":(4.05, 4.05),
+                    "adjust_text_arrowprops":{
+                        "arrowstyle":"-", "color":"gray", "lw":0.5},
+                    "errorbar_elinewidth":1,
+                    "errorbar_capsize":2,
+                    "errorbar_ecolor":"gray",
+                    "label_ha":"center",
+                    "label_va":"center",
+                    "use_colorbar":True,
+                    #"cbar_label":"Spatial throughput (px/s)\n" + \
+                    #    "Point size indicates time throughput",
+                    "cbar_label":"Spatial throughput (1e6 px/s)",
+                    "cbar_orient":"horizontal",
+                    "cmap":"rainbow",
+                    "vmin":0,
+                    #"vmax":1,
+                    },
+                fig_path=fig_dir.joinpath(
+                    f"chunk-bench_pareto-size-nchunk_full-chunk_all.png"),
+                )
 
         pp25,pp50,pp75,csize = list(map(np.asarray, zip(*[
             (p25,p50,p75,float(np.prod(cc.as_tuple())))
             for p25,p50,p75,cc in sorted(
-                zip(*pres["bitrate_pct"], pres["ccs"]),
+                zip(*pdict["pixel"]["bitrate_pct"], pdict["pixel"]["ccs"]),
                 key=lambda t:t[-1].as_tuple(),
                 )
             if cc in shared_ccs
@@ -574,58 +501,127 @@ if __name__=="__main__":
         tp25,tp50,tp75 = list(map(np.asarray, zip(*[
             (p25,p50,p75)
             for p25,p50,p75,cc in sorted(
-                zip(*tres["bitrate_pct"], tres["ccs"]),
+                zip(*pdict["timestep"]["bitrate_pct"],
+                    pdict["timestep"]["ccs"]),
                 key=lambda t:t[-1].as_tuple()
                 )
             if cc in shared_ccs
             ])))
 
-        plot_scatter(
-            x=tp50,
-            #x=np.array(sizes)**(1/3),
-            y=pp50,
-            #size=np.array(sizes)/30000,
-            color=np.array(csize)*4/1000**2,
-            xerr=(tp50-tp25, tp75-tp50),
-            yerr=(pp50-pp25, pp75-pp50),
-            labels=[cc.as_tuple() for cc in shared_ccs],
-            plot_spec={
-                "title":f"Chunk Efficiency wrt Area and Time\n" + \
-                    "(only count single timestep/pixel column)",
-                "ylabel":"Efficiency Across Time (px/s) (25-50pct)",
-                "xlabel":"Efficiency Across Space (px/s (25-50pct))",
-                "xscale":"linear",
-                "point_label_fontsize":3,
-                "avoid_label_overlap":False,
-                "errorbar_elinewidth":1,
-                "errorbar_capsize":2,
-                "label_ha":"center",
-                "label_va":"center",
-                "use_colorbar":True,
-                "cbar_label":"Chunk Size (MB)",
-                "cmap":"rainbow",
-                "norm":"log",
-                },
-            fig_path=fig_dir.joinpath(
-                f"chunk-bench_pareto-timestep-pixel_valid-pixels.png"),
-            )
+        if plot_pareto:
+            plot_scatter(
+                x=tp50,
+                #x=np.array(sizes)**(1/3),
+                y=pp50,
+                #size=np.array(sizes)/30000,
+                color=np.array(csize)*4/1000**2,
+                xerr=(tp50-tp25, tp75-tp50),
+                yerr=(pp50-pp25, pp75-pp50),
+                labels=[cc.as_tuple() for cc in shared_ccs],
+                plot_spec={
+                    "title":f"Chunk Efficiency wrt Aspect\n" + \
+                        "(only count single timestep/pixel column)",
+                    "ylabel":"Efficiency Across Time (px/s) (25-50pct)",
+                    "xlabel":"Efficiency Across Space (px/s (25-50pct))",
+                    "xscale":"linear",
+                    "point_label_fontsize":3.5,
+                    "point_label_rotation":-30,
+                    "tight_layout":True,
+                    "avoid_label_overlap":False,
+                    "errorbar_elinewidth":1,
+                    "errorbar_capsize":2,
+                    "errorbar_ecolor":"gray",
+                    "label_ha":"center",
+                    "label_va":"center",
+                    "use_colorbar":True,
+                    "cbar_label":"Chunk Size (log(size); MB)",
+                    "cmap":"rainbow",
+                    "norm":"log",
+                    },
+                fig_path=fig_dir.joinpath(
+                    f"chunk-bench_pareto-timestep-pixel_valid-pixels.png"),
+                )
+
+        if plot_size_aspect:
+            plot_scatter(
+                x=[np.log10(cc.size*4/1000**2) for cc in shared_ccs],
+                y=[cc.cvec[0]*np.prod(cc.cvec[1:3])**(-0.5)
+                   for cc in shared_ccs],
+                #color=pp50 / 1e6,
+                color=pp50,
+                #size=tp50 / 500,
+                size=128,
+                #xerr=(tp50-tp25, tp75-tp50),
+                #yerr=(pp50-pp25, pp75-pp50),
+                labels=[cc.as_tuple() for cc in shared_ccs],
+                plot_spec={
+                    "title":f"Chunk Size and Aspect wrt Throughput (px/s)" + \
+                        "\n(only counts indexed pixels)",
+                    "ylabel":"Chunk Aspect (St (SxSy)^-0.5)",
+                    "xlabel":"Chunk log(size) in MB",
+                    "xscale":"linear",
+                    "point_label_fontsize":3.5,
+                    "tight_layout":True,
+                    "avoid_label_overlap":False,
+                    "adjust_text_expand":(2.0,2.0),
+                    "adjust_text_force":(4.05, 4.05),
+                    "adjust_text_arrowprops":{
+                        "arrowstyle":"-", "color":"gray", "lw":0.5},
+                    "errorbar_elinewidth":1,
+                    "errorbar_capsize":2,
+                    "errorbar_ecolor":"gray",
+                    "label_ha":"center",
+                    "label_va":"center",
+                    "use_colorbar":True,
+                    "cbar_label":"Temporal throughput (px/s)",
+                    #"cbar_label":"Temporal throughput (px/s)\n" + \
+                    #    "Point size indicates area throughput",
+                    "cbar_orient":"horizontal",
+                    "cmap":"rainbow",
+                    #"norm":"log",
+                    },
+                fig_path=fig_dir.joinpath(
+                    f"chunk-bench_pareto-size-aspect_valid-pixels_area.png"),
+                )
+            plot_scatter(
+                x=[np.log10(cc.size*4/1000**2) for cc in shared_ccs],
+                y=[cc.cvec[0]*np.prod(cc.cvec[1:3])**(-0.5)
+                   for cc in shared_ccs],
+                color=tp50 / 1e6,
+                #size=pp50 / 500,
+                size=128,
+                #xerr=(tp50-tp25, tp75-tp50),
+                #yerr=(pp50-pp25, pp75-pp50),
+                labels=[cc.as_tuple() for cc in shared_ccs],
+                plot_spec={
+                    "title":f"Chunk Size and Aspect wrt Throughput (px/s)" + \
+                        "\n(only counts indexed pixels)",
+                    "ylabel":"Chunk Size",
+                    "xlabel":"Chunk Aspect",
+                    "xscale":"linear",
+                    "point_label_fontsize":3.5,
+                    "tight_layout":True,
+                    "avoid_label_overlap":False,
+                    "adjust_text_expand":(2.0,2.0),
+                    "adjust_text_force":(4.05, 4.05),
+                    "adjust_text_arrowprops":{
+                        "arrowstyle":"-", "color":"gray", "lw":0.5},
+                    "errorbar_elinewidth":1,
+                    "errorbar_capsize":2,
+                    "errorbar_ecolor":"gray",
+                    "label_ha":"center",
+                    "label_va":"center",
+                    "use_colorbar":True,
+                    "cbar_label":"Area throughput (1e6 px/s)",
+                    "cbar_orient":"horizontal",
+                    "cmap":"rainbow",
+                    #"norm":"log",
+                    },
+                fig_path=fig_dir.joinpath(
+                    f"chunk-bench_pareto-size-aspect_valid-pixels_time.png"),
+                )
 
     if plot_land_per_chunk:
-        ## download the parameter file if it doesn't exist already
-        if not nldas3_param_path.exists():
-            s3 = boto3.client("s3")
-            s3.download_file(
-                "nasa-waterinsight",
-                "NLDAS3/static/NLDAS-3_dominant-soil-vegetation.nc",
-                nldas3_param_path.as_posix(),
-                )
-        ## extract geo coords and land mask from the parameter file
-        with nc.Dataset(nldas3_param_path, "r") as param_ds:
-            nldas3_lats = param_ds["lat"][...]
-            nldas3_lons = param_ds["lon"][...]
-            ## class 14 corresponds to water
-            nldas3_land_mask = ~(param_ds["Soiltype_inst"][...] == 14)
-
         ## Land pixels per chunk
         all_spatial_ccs = list(set([
             tuple(map(int, rk.split("-")[-1].split(".")))[1:]
@@ -641,7 +637,7 @@ if __name__=="__main__":
         for p,ct in filter(lambda pt:pt[1] in all_spatial_ccs, poly_npz_paths):
             chunks = np.load(p, allow_pickle=True)
             cinfo = chunks["chunk_info"]
-            cmasks = np.where(nldas3_land_mask, chunks["chunk_masks"], int_fill)
+            cmasks = np.where(nldas3_land_mask,chunks["chunk_masks"],int_fill)
             cunq = np.unique(cmasks, return_counts=True)
             #print(cunq)
             chunk_efficiency[ct] = np.delete(
@@ -678,10 +674,12 @@ if __name__=="__main__":
                 "ylabel":"Median Land Pixels per Valid Chunk Pixel (25-75pct)",
                 "xlabel":"Chunk Size (px)",
                 "xscale":"log",
-                "point_label_fontsize":5,
+                "point_label_fontsize":3.5,
+                "tight_layout":True,
                 "avoid_label_overlap":False,
                 "errorbar_elinewidth":1,
                 "errorbar_capsize":2,
+                "errorbar_ecolor":"gray",
                 "label_ha":"center",
                 "label_va":"center",
                 "use_colorbar":True,
@@ -692,3 +690,4 @@ if __name__=="__main__":
             fig_path=fig_dir.joinpath(
                 f"chunk-bench_csize-ceff.png"),
             )
+
