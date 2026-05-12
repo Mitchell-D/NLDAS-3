@@ -221,6 +221,13 @@ present in the final dataset (since this subset's size doesn't
 necessarily have the chunk size as a factor) and will be affected
 by the same latency overhead as all others. use the
 
+Note also that partial chunks affect spatial and temporal indexing.
+
+Really, I should add a new test type that guarantees full chunks are
+indexed at a time in order to regress latency. or perhaps even
+better a conditional for all test types, and a new test for
+arbitrarily shaped but constrained contiguous subsets.
+
 **visualizations**
 
 - scatterplot x: `time_start`, y: `dt_init`
@@ -237,9 +244,7 @@ by the same latency overhead as all others. use the
 - overall scatterplot and linear regression of number of points
   per request vs `dt_load` to estimate latency overhead
 
-## results
-
-## simulate for full grid:
+### simulate for full grid:
 
 1. chunks per pixel column
 2. chunks per time slice
@@ -249,7 +254,7 @@ by the same latency overhead as all others. use the
    (or mean valid points per chunk)
 6. points loaded/points included per watershed
 
-## end goals
+### end goals
 
 - develop a regression relationship between size/aspect configuration
   based on benchmark observations
@@ -259,3 +264,5 @@ by the same latency overhead as all others. use the
 
 - show the relationship between request size/shape, number of chunks
   requested, and download time
+
+### thoughts

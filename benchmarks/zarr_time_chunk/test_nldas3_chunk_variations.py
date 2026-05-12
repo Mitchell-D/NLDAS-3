@@ -90,14 +90,16 @@ def mp_run_benchmark(args):
     return args,run_benchmark(**args)
 
 def run_benchmark(zarr_url, test_type, var_label,
-        test_kwargs:dict={}, seed=None, debug=False):
+        test_kwargs:dict={}, seed=None, debug=False, dtype_size=4):
     """
     :@param zarr_url: path or remote url
     :@param test_type: determines what kind of subset to extract and time;
         may be 'pixel', 'timestep', 'chunk', or 'multichunk'
     """
     test_settings = {
-        "nchunks":2, ## only applies to multichunk
+        "nchunks":2, ## multichunk
+        "full_chunk_only":False, ## chunk,multichunk,volume
+        "volume_cutoff_range_mb":4000, ## volume
         }
     test_settings.update(test_kwargs)
 
@@ -135,11 +137,22 @@ def run_benchmark(zarr_url, test_type, var_label,
         tf_load = time.perf_counter()
         point_count = sub_out.size
 
-    elif test_type in ["chunk", "multichunk"]:
+    elif test_type in ["chunk", "multichunk", "volume"]:
         ## list the chunk boundary indices
-        cb_time = np.cumsum(np.concatenate([[0], arr.chunksizes["time"]]))
-        cb_lat = np.cumsum(np.concatenate([[0], arr.chunksizes["lat"]]))
-        cb_lon = np.cumsum(np.concatenate([[0], arr.chunksizes["lon"]]))
+        csdict = arr.chunksizes
+        cb_time = np.cumsum(np.concatenate([[0], csdict["time"]]))
+        cb_lat = np.cumsum(np.concatenate([[0], csdict["lat"]]))
+        cb_lon = np.cumsum(np.concatenate([[0], csdict["lon"]]))
+
+        base_shape = [csdict["time"][0], csdict["lat"][0], csdict["lon"][0]]
+        ## remove the final chunk from the listing if only full chunks allowed
+        if test_settings["full_chunk_only"]:
+            if base_shape[0] != csdict["time"][-1]:
+                cb_time = cb_time[:-1]
+            if base_shape[1] != csdict["lat"][-1]:
+                cb_lat = cb_lat[:-1]
+            if base_shape[2] != csdict["lon"][-1]:
+                cb_lon = cb_lon[:-1]
 
         if test_type=="chunk":
             ## choose a random chunk
@@ -155,6 +168,47 @@ def run_benchmark(zarr_url, test_type, var_label,
             if debug:
                 print(f"Extracting chunk {cslc}")
             ## record time to reference and download subset
+            t0_load = time.perf_counter()
+            sub_out = arr[*cslc].load().to_numpy()
+            tf_load = time.perf_counter()
+            point_count = sub_out.size
+
+        if test_type=="volume":
+            csize = np.prod(base_shape) * dtype_size / 1000**2
+            assert test_settings["volume_cutoff_range_mb"][0] \
+                < test_settings["volume_cutoff_range_mb"][1]
+            assert csize < test_settings["volume_cutoff_range_mb"][0], \
+                "default chunk size is too large given volume_cutoff_range_mb"
+            vrange = np.stack([
+                sorted(rng.choice(cb_time.size-1, 2, replace=False)),
+                sorted(rng.choice(cb_lat.size-1, 2, replace=False)),
+                sorted(rng.choice(cb_lon.size-1, 2, replace=False)),
+                ], axis=0)
+
+            ## randomize the cutoff within the requested bounds
+            cutoff_size = rng.random() \
+                    * np.diff(test_settings["volume_cutoff_range_mb"])
+                    + test_settings["volume_cutoff_range_mb"][0]
+
+            ## iterate on randomly removing chunks until within the cutoff
+            vdiff = np.diff(vrange, axis=1)
+            vsize = np.prod(vdiff) * csize
+            trunc_last = True
+            while vsize > cutoff_size:
+                ## weight probability of truncating axis by size in num chunks
+                probs = np.squeeze((vdiff-1)/np.sum(vdiff-1))
+                trunc_ix = rng.choice(3, p=probs)
+                vrange[trunc_ix][int(trunc_last)] += [1,-1][int(trunc_last)]
+                vdiff = np.diff(vrange, axis=1)
+                vsize = np.prod(vdiff) * csize
+                trunc_last = not trunc_last
+
+            cslc = [
+                slice(vrange[0][0], vrange[0][1]),
+                slice(vrange[1][0], vrange[1][1]),
+                slice(vrange[2][0], vrange[2][1]),
+                ]
+
             t0_load = time.perf_counter()
             sub_out = arr[*cslc].load().to_numpy()
             tf_load = time.perf_counter()
@@ -248,7 +302,10 @@ if __name__=="__main__":
     sub_out_dtype = np.float32
 
     ## benchmark settings
-    run_benchmark_tests = ["pixel", "timestep", "chunk", "multichunk"]
+    run_benchmark_tests = [
+            "pixel", "timestep",
+            "chunk", "multichunk", "volume",
+            ]
     benchmark_iterations = 64
     random_seed = 7221750
     zarr_url = "s3://nasa-waterinsight/.test/nldas3_chunk_benchmarking.zarr"
@@ -384,13 +441,21 @@ if __name__=="__main__":
         rng.shuffle(bench_runs)
         pprint(bench_runs)
 
+        default_test_kwargs = {"full_chunk_only":True}
         args = [{
             "zarr_url":zarr_url,
             "test_type":tl,
             "var_label":benchmark_var+"-"+".".join(map(str, cctup)),
-            "test_kwargs":[ ## only include if multichunk test
-                {},{"nchunks":int(rng.integers(*multi_chunk_range))}
-                ][int(tl=="multichunk")],
+            "test_kwargs":{
+                "multichunk":{
+                    **default_test_kwargs,
+                    "nchunks":int(rng.integers(*multi_chunk_range))
+                    },
+                "volume":{
+                    **default_test_kwargs,
+                    "volume_cutoff_range_mb":(200, 5000)
+                    },
+                }.get(tl, default_test_kwargs),
             "seed":random_seed+i,
             "debug":False,
             } for i,(cctup,tl) in enumerate(bench_runs)]
