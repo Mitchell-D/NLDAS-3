@@ -103,7 +103,7 @@ def run_benchmark(zarr_url, test_type, var_label,
         }
     test_settings.update(test_kwargs)
 
-    assert test_type in ["pixel", "timestep", "chunk", "multichunk"]
+    assert test_type in ["pixel", "timestep", "chunk", "multichunk", "volume"]
     rng = np.random.default_rng(seed)
     xr_kwargs = [{},{"storage_options":{"anon":True}}][zarr_url[:3]=="s3:"]
     if debug:
@@ -187,7 +187,7 @@ def run_benchmark(zarr_url, test_type, var_label,
 
             ## randomize the cutoff within the requested bounds
             cutoff_size = rng.random() \
-                    * np.diff(test_settings["volume_cutoff_range_mb"])
+                    * np.diff(test_settings["volume_cutoff_range_mb"]) \
                     + test_settings["volume_cutoff_range_mb"][0]
 
             ## iterate on randomly removing chunks until within the cutoff
@@ -204,9 +204,9 @@ def run_benchmark(zarr_url, test_type, var_label,
                 trunc_last = not trunc_last
 
             cslc = [
-                slice(vrange[0][0], vrange[0][1]),
-                slice(vrange[1][0], vrange[1][1]),
-                slice(vrange[2][0], vrange[2][1]),
+                slice(cb_time[vrange[0][0]], cb_time[vrange[0][1]]),
+                slice(cb_lat[vrange[1][0]], cb_lat[vrange[1][1]]),
+                slice(cb_lon[vrange[2][0]], cb_lon[vrange[2][1]]),
                 ]
 
             t0_load = time.perf_counter()
@@ -279,14 +279,50 @@ def collect_benchmark_result(cur_args, cur_results, json_path):
     json.dump(results, json_path.open("w"), indent=2)
     return results
 
+def get_chunk_size_combos(time_sizes, lat_sizes, lon_sizes,
+        dtype_bytesize=4, chunk_size_bounds_mb=None, area_aspect_bounds=None,
+        exclude_permutations=True):
+    """
+    """
+    ## enumerate all chunk size combos
+    layouts = np.stack(np.meshgrid(
+        time_sizes, lat_sizes, lon_sizes, indexing="ij"
+        ), axis=0).reshape(3, -1)
+
+    ## resrtrict by chunk size per chunk_size_bounds_mb
+    if not chunk_size_bounds_mb is None:
+        chunk_sizes_mb = np.prod(layouts, axis=0) * dtype_bytesize / 1000**2
+        m_size = (chunk_sizes_mb > chunk_size_bounds_mb[0]) \
+                & (chunk_sizes_mb < chunk_size_bounds_mb[1])
+        layouts = layouts[:,m_size]
+
+    ## restrict by area aspect ratio via area_aspect_bounds
+    if not area_aspect_bounds is None:
+        chunk_area_asp = layouts[1] / layouts[2]
+        m_asp = (chunk_area_asp > area_aspect_bounds[0]) \
+                & (chunk_area_asp < area_aspect_bounds[1])
+        layouts = layouts[:,m_asp]
+
+    ## rule out chunks with dimensions that are permutations of other configs
+    if exclude_permutations:
+        a,ixs,cnts = np.unique(
+                np.sort(layouts, axis=0),
+                axis=1,
+                return_index=True,
+                return_counts=True,
+                )
+        layouts = layouts[:,ixs]
+
+    return list(map(tuple, layouts.T.tolist()))
+
 if __name__=="__main__":
-    out_zarr_path = Path("/rtmp/mdodson/nldas3_chunk_benchmarking.zarr")
+    out_zarr_path = Path("/rgroup/airmettle/nldas3_chunk_benchmarking.zarr")
 
     ## switchboard
     print_table = False
     download_new_subset = False
-    load_chunk_variations = False
-    run_benchmarks = True
+    load_chunk_variations = True
+    run_benchmarks = False
 
     ## table printing settings
     full_grid_shape = (6500, 11700, 8400)
@@ -303,7 +339,7 @@ if __name__=="__main__":
 
     ## benchmark settings
     run_benchmark_tests = [
-            "pixel", "timestep",
+            #"pixel", "timestep",
             "chunk", "multichunk", "volume",
             ]
     benchmark_iterations = 64
@@ -312,8 +348,12 @@ if __name__=="__main__":
     #zarr_url = out_zarr_path.as_posix()
     benchmark_var = "Tair"
     multi_chunk_range = (2, 13)
+    volume_cutoff_range_mb = (200, 5000)
+    full_chunk_only = True
+
     #json_out_path = Path("nldas3_chunk_bench_results_local.json")
-    json_out_path = Path("data/nldas3_chunk_bench_results.json")
+    #json_out_path = Path("data/nldas3_chunk_bench_results.json")
+    json_out_path = Path("data/nldas3_chunk_bench_results_fullchunk.json")
     nprocs = 24
     #nprocs = 1
 
@@ -323,59 +363,48 @@ if __name__=="__main__":
     ## daily
     #'''
     chunking_cands = [
-        #ChunkConfig(1, 500, 900),
-        #ChunkConfig(1, 325, 650),
-        ChunkConfig(1, 250, 450),
-        #ChunkConfig(1, 500, 300),
-        #ChunkConfig(1, 260, 260),
-        #ChunkConfig(1, 130, 260),
+        ChunkConfig(1,500,900), ChunkConfig(1,325,650),
+        ChunkConfig(1,250,450), ChunkConfig(1, 500, 300),
+        ChunkConfig(1, 260, 260), ChunkConfig(1, 130, 260),
 
-        #ChunkConfig(8, 500, 900),
-        #ChunkConfig(8, 325, 650),
-        ChunkConfig(8, 250, 450),
-        #ChunkConfig(8, 500, 300),
-        #ChunkConfig(8, 260, 260),
-        #ChunkConfig(8, 130, 260),
+        ChunkConfig(8, 500, 900), ChunkConfig(8, 325, 650),
+        ChunkConfig(8, 250, 450), ChunkConfig(8, 500, 300),
+        ChunkConfig(8, 260, 260), ChunkConfig(8, 130, 260),
 
-        ChunkConfig(16, 500, 900),
-        ChunkConfig(16, 325, 650),
-        ChunkConfig(16, 250, 450),
-        ChunkConfig(16, 500, 300),
-        ChunkConfig(16, 260, 260),
-        ChunkConfig(16, 130, 260),
+        ChunkConfig(16, 500, 900), ChunkConfig(16, 325, 650),
+        ChunkConfig(16, 250, 450), ChunkConfig(16, 500, 300),
+        ChunkConfig(16, 260, 260), ChunkConfig(16, 130, 260),
 
-        #ChunkConfig(24, 500, 900),
-        #ChunkConfig(24, 325, 650),
-        ChunkConfig(24, 250, 450),
-        #ChunkConfig(24, 500, 300),
-        #ChunkConfig(24, 260, 260),
-        #ChunkConfig(24, 130, 260),
+        ChunkConfig(24, 500, 900), ChunkConfig(24, 325, 650),
+        ChunkConfig(24, 250, 450), ChunkConfig(24, 500, 300),
+        ChunkConfig(24, 260, 260), ChunkConfig(24, 130, 260),
 
-        ChunkConfig(32, 500, 900),
-        ChunkConfig(32, 325, 650),
-        ChunkConfig(32, 250, 450),
-        ChunkConfig(32, 500, 300),
-        ChunkConfig(32, 260, 260),
-        ChunkConfig(32, 130, 260),
+        ChunkConfig(32, 500, 900), ChunkConfig(32, 325, 650),
+        ChunkConfig(32, 250, 450), ChunkConfig(32, 500, 300),
+        ChunkConfig(32, 260, 260), ChunkConfig(32, 130, 260),
         ]
     #'''
 
-    ## hourly
-    '''
-    chunking_cands = [
-        ChunkConfig(500, 900, 6),
-        ChunkConfig(250, 300, 6),
-        ChunkConfig(130, 130, 6),
-
-        ChunkConfig(500, 900, 24),
-        ChunkConfig(250, 300, 24),
-        ChunkConfig(130, 130, 24),
-
-        ChunkConfig(500, 900, 48),
-        ChunkConfig(250, 300, 48),
-        ChunkConfig(130, 130, 48),
-        ]
-    '''
+    ## generate ChunkConfigs
+    #'''
+    #time_sizes = [1, 4, 8, 12, 16, 24, 32, 48, 64, 96, 128, 192, 256]
+    #latlon_common = [1, 4, 10, 25, 50, 65, 100, 130, 260, 325, 650]
+    time_sizes = [4, 8, 16, 24, 32, 48, 96, 128, 256]
+    latlon_common = [25, 65, 100, 130, 260, 325, 650]
+    layouts = get_chunk_size_combos(
+        time_sizes=time_sizes,
+        lat_sizes=[*latlon_common, 500],
+        lon_sizes=[*latlon_common, 180, 450],
+        dtype_bytesize=4,
+        chunk_size_bounds_mb=(0.1, 32.),
+        area_aspect_bounds=(1/5, 5.),
+        exclude_permutations=True,
+        )
+    chunking_cands = list(filter(
+            lambda cc:cc not in chunking_cands,
+            [ChunkConfig(*lt) for lt in layouts],
+            ))
+    #'''
 
     """ ------------------( END NORMAL CONFIGURATION )-----------------  """
 
@@ -441,7 +470,7 @@ if __name__=="__main__":
         rng.shuffle(bench_runs)
         pprint(bench_runs)
 
-        default_test_kwargs = {"full_chunk_only":True}
+        default_test_kwargs = {"full_chunk_only":full_chunk_only}
         args = [{
             "zarr_url":zarr_url,
             "test_type":tl,
@@ -453,7 +482,7 @@ if __name__=="__main__":
                     },
                 "volume":{
                     **default_test_kwargs,
-                    "volume_cutoff_range_mb":(200, 5000)
+                    "volume_cutoff_range_mb":volume_cutoff_range_mb,
                     },
                 }.get(tl, default_test_kwargs),
             "seed":random_seed+i,
