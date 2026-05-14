@@ -9,6 +9,7 @@ import boto3
 import netCDF4 as nc
 import shapely
 import multiprocessing as mp
+import xarray as xr
 from pprint import pprint
 from pathlib import Path
 from osgeo import ogr,osr
@@ -364,6 +365,8 @@ if __name__=="__main__":
     """ --( generate polygons based on chunk benchmark results ) """
 
     if gen_poly_files:
+        ## get ChunkConfig options from results file
+        '''
         res_dict = json.load(benchmark_results_path.open("r"))
         tlabels = list(res_dict.keys()) ## test labels
         ## 3-tuple of ints (time, lat, lon) counting pixels per tested chunk
@@ -371,6 +374,16 @@ if __name__=="__main__":
             tuple(map(int, k.split("-")[-1].split(".")[1:]))
             for tl in tlabels for k in res_dict[tl]
             ))
+        '''
+        ## get ChunkConfig options from remote zarr
+        zurl =  "s3://nasa-waterinsight/.test/nldas3_chunk_benchmarking.zarr"
+        ds = xr.open_zarr(zurl, consolidated=False)
+        chunk_layouts = list(set([
+            tuple(map(int, vl.split("-")[-1].split(".")))[1:]
+            for vl in ds.variables.keys()
+            if vl not in ("lat", "lon", "time")
+            ]))
+        pprint(chunk_layouts)
 
         args = [{
             "nldas3_param_path":nldas3_path,

@@ -127,6 +127,7 @@ def run_benchmark(zarr_url, test_type, var_label,
         sub_out = arr[:,ixy,ixx].load().to_numpy()
         tf_load = time.perf_counter()
         point_count = sub_out.size
+        query = (ixy, ixx)
 
     elif test_type=="timestep":
         ixt = rng.integers(arr.shape[1])
@@ -136,6 +137,7 @@ def run_benchmark(zarr_url, test_type, var_label,
         sub_out = arr[ixt,:,:].load().to_numpy()
         tf_load = time.perf_counter()
         point_count = sub_out.size
+        query = (ixt,)
 
     elif test_type in ["chunk", "multichunk", "volume"]:
         ## list the chunk boundary indices
@@ -159,6 +161,7 @@ def run_benchmark(zarr_url, test_type, var_label,
             ixc_0 = rng.integers(cb_time.size-1)
             ixc_1 = rng.integers(cb_lat.size-1)
             ixc_2 = rng.integers(cb_lon.size-1)
+            query = (tuple(map(int, (ixc_0, ixc_1, ixc_2))),)
 
             cslc = [
                 slice(cb_time[ixc_0], cb_time[ixc_0+1]),
@@ -179,10 +182,11 @@ def run_benchmark(zarr_url, test_type, var_label,
                 < test_settings["volume_cutoff_range_mb"][1]
             assert csize < test_settings["volume_cutoff_range_mb"][0], \
                 "default chunk size is too large given volume_cutoff_range_mb"
+            #print(cb_time.size, cb_lat.size, cb_lon.size)
             vrange = np.stack([
-                sorted(rng.choice(cb_time.size-1, 2, replace=False)),
-                sorted(rng.choice(cb_lat.size-1, 2, replace=False)),
-                sorted(rng.choice(cb_lon.size-1, 2, replace=False)),
+                sorted(rng.choice(cb_time.size, 2, replace=False)),
+                sorted(rng.choice(cb_lat.size, 2, replace=False)),
+                sorted(rng.choice(cb_lon.size, 2, replace=False)),
                 ], axis=0)
 
             ## randomize the cutoff within the requested bounds
@@ -209,6 +213,14 @@ def run_benchmark(zarr_url, test_type, var_label,
                 slice(cb_lon[vrange[2][0]], cb_lon[vrange[2][1]]),
                 ]
 
+            query = np.stack(np.meshgrid(
+                range(vrange[0][0], vrange[0][1]),
+                range(vrange[1][0], vrange[1][1]),
+                range(vrange[2][0], vrange[2][1]),
+                indexing="ij",
+                ), axis=-1).reshape(-1,3)
+            query = tuple(map(tuple, query.astype(int).tolist()))
+
             t0_load = time.perf_counter()
             sub_out = arr[*cslc].load().to_numpy()
             tf_load = time.perf_counter()
@@ -225,6 +237,10 @@ def run_benchmark(zarr_url, test_type, var_label,
                 slice(cb_lon[ixc_2[i]], cb_lon[ixc_2[i]+1]),
                 ) for i in range(test_settings["nchunks"])
                 ]
+            query = tuple([
+                tuple(map(int, (ixc_0[i], ixc_1[i], ixc_2[i])))
+                for i in range(test_settings["nchunks"])
+                ])
             if debug:
                 print(f"Extracting chunks: {cslcs}")
             ## record the total time and number of points downloaded
@@ -240,6 +256,7 @@ def run_benchmark(zarr_url, test_type, var_label,
         "time_start":t0_init,
         "dt_init":tf_init-t0_init,
         "dt_load":tf_load-t0_load,
+        "query":query,
         }
 
 def collect_benchmark_result(cur_args, cur_results, json_path):
@@ -261,6 +278,7 @@ def collect_benchmark_result(cur_args, cur_results, json_path):
             "dt_init":[],
             "dt_load":[],
             "test_kwargs":[],
+            "query":[],
             "seed":[],
             }
     tmp_res_dict = {
@@ -316,19 +334,19 @@ def get_chunk_size_combos(time_sizes, lat_sizes, lon_sizes,
     return list(map(tuple, layouts.T.tolist()))
 
 if __name__=="__main__":
-    out_zarr_path = Path("/rgroup/airmettle/nldas3_chunk_benchmarking.zarr")
 
     ## switchboard
     print_table = False
     download_new_subset = False
-    load_chunk_variations = True
-    run_benchmarks = False
+    load_chunk_variations = False
+    run_benchmarks = True
 
     ## table printing settings
     full_grid_shape = (6500, 11700, 8400)
     dtype_size_bytes = 4
 
     ## subset zarr storage settings
+    out_zarr_path = Path("/rgroup/airmettle/nldas3_chunk_benchmarking.zarr")
     sub_time_slice=slice("2014-01-01", "2018-12-31")
     sub_lat_slice=slice(2500, 3500)
     sub_lon_slice=slice(7200, 9000)
@@ -343,25 +361,25 @@ if __name__=="__main__":
             "chunk", "multichunk", "volume",
             ]
     benchmark_iterations = 64
-    random_seed = 7221750
+    random_seed = 200007221750
     zarr_url = "s3://nasa-waterinsight/.test/nldas3_chunk_benchmarking.zarr"
     #zarr_url = out_zarr_path.as_posix()
     benchmark_var = "Tair"
-    multi_chunk_range = (2, 13)
-    volume_cutoff_range_mb = (200, 5000)
+    multi_chunk_range = (2, 32)
+    volume_cutoff_range_mb = (200, 4000)
     full_chunk_only = True
-
     #json_out_path = Path("nldas3_chunk_bench_results_local.json")
     #json_out_path = Path("data/nldas3_chunk_bench_results.json")
     json_out_path = Path("data/nldas3_chunk_bench_results_fullchunk.json")
-    nprocs = 24
+
+    nprocs = 6 ## number of concurrent processes for downloading
     #nprocs = 1
 
     ## run default
     chunking_cands = [ChunkConfig(500, 900, 1)]
 
     ## daily
-    #'''
+    '''
     chunking_cands = [
         ChunkConfig(1,500,900), ChunkConfig(1,325,650),
         ChunkConfig(1,250,450), ChunkConfig(1, 500, 300),
@@ -383,10 +401,10 @@ if __name__=="__main__":
         ChunkConfig(32, 250, 450), ChunkConfig(32, 500, 300),
         ChunkConfig(32, 260, 260), ChunkConfig(32, 130, 260),
         ]
-    #'''
+    '''
 
     ## generate ChunkConfigs
-    #'''
+    '''
     #time_sizes = [1, 4, 8, 12, 16, 24, 32, 48, 64, 96, 128, 192, 256]
     #latlon_common = [1, 4, 10, 25, 50, 65, 100, 130, 260, 325, 650]
     time_sizes = [4, 8, 16, 24, 32, 48, 96, 128, 256]
@@ -404,6 +422,17 @@ if __name__=="__main__":
             lambda cc:cc not in chunking_cands,
             [ChunkConfig(*lt) for lt in layouts],
             ))
+    '''
+
+    ## derive ChunkConfigs from what's available on the s3 bucket
+    #'''
+    ds = xr.open_zarr(zarr_url, consolidated=False)
+    chunking_cands = [
+        ChunkConfig(*map(int, vl.split("-")[-1].split(".")))
+        for vl in ds.variables.keys()
+        if vl not in ("lat", "lon", "time")
+        ]
+    print(list(ds.variables.keys()))
     #'''
 
     """ ------------------( END NORMAL CONFIGURATION )-----------------  """
@@ -422,7 +451,7 @@ if __name__=="__main__":
             nct,ncx,ncy = cc.chunk_layout(*full_grid_shape)
             sct,scx,scy = cc.as_tuple()
             print(" | ".join(map(str, [
-                cc.nlat, cc.nlon, cc.ntime,
+                *tuple(cc.cvec),
                 cc.chunk_size_mb(dtype_size_bytes),
                 nct, ncy*ncx,
                 f"{sct/(scy*scx)*1000:.3f}"
@@ -450,7 +479,7 @@ if __name__=="__main__":
         ds = xr.open_zarr(out_zarr_path)
         x = ds["Tair-1.500.900"].load().to_numpy()
         for cc in chunking_cands:
-            clayout = (cc.ntime, cc.nlat, cc.nlon)
+            clayout = tuple(cc)
             tmp_label = sub_acquire_var + "-" + ".".join(map(str,clayout))
             tmp_array = dask.array.from_array(x, chunks=clayout)
             ds = xr.Dataset({tmp_label:(("time", "lat", "lon"), tmp_array)})
@@ -489,7 +518,7 @@ if __name__=="__main__":
             "debug":False,
             } for i,(cctup,tl) in enumerate(bench_runs)]
 
-
+        print(f"Running {len(args)} experiments")
         results = {}
         if nprocs>1:
             with mp.Pool(nprocs) as pool:

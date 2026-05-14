@@ -20,11 +20,11 @@ if __name__=="__main__":
 
     plot_variables = ["Tair"]
 
-    plot_StSxy_bitrate_scatter = True
+    plot_StSxy_bitrate_scatter = False
     plot_land_per_chunk = True
-    plot_pareto = True
-    plot_size_aspect = True
-    plot_size_nchunks = True
+    plot_pareto = False
+    plot_size_aspect = False
+    plot_size_nchunks = False
 
     cl_cmap = get_listed_cmap(
             size=len(all_clabels),
@@ -634,7 +634,8 @@ if __name__=="__main__":
             if p.name.endswith(".npz")
             ]
         chunk_efficiency = {}
-        for p,ct in filter(lambda pt:pt[1] in all_spatial_ccs, poly_npz_paths):
+        #for p,ct in filter(lambda pt:pt[1] in all_spatial_ccs, poly_npz_paths):
+        for p,ct in poly_npz_paths:
             chunks = np.load(p, allow_pickle=True)
             cinfo = chunks["chunk_info"]
             cmasks = np.where(nldas3_land_mask,chunks["chunk_masks"],int_fill)
