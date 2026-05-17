@@ -265,4 +265,47 @@ arbitrarily shaped but constrained contiguous subsets.
 - show the relationship between request size/shape, number of chunks
   requested, and download time
 
+### zarr downloading
+
+1. on `xr.open_zarr`, declare fsspec and acquire metadata for
+   shapes, coordinates, attributes, structure, and chunk config.
+2. on `ds.isel`, create a new view with lazily-defined slicing
+   operations on dask array compute graph.
+3. on `load()`, fsspec concurrently fetches byte ranges for chunks
+   touching slice, decompresses them, subsets them according to the
+   slice, and concatenates them.
+
 ### thoughts
+
+My initial phase of results were seriously comprimised by the fact
+that the chunk sizes I tested were not all factors of the subdomain
+size I was using. Smaller chunks distort the ratio between latency
+and download time, which adds significant variance to single-chunk
+and pixel column observations.
+
+In the second round of tests, I limit my observations to full chunks,
+and test single requests, concurrent requests for contiguous chunk
+volumes, and consecutive requests for multiple sparse chunks.
+
+With these observations, I aim to build a regression mapping
+chunk size and number of chunks requested to throughput.
+
+Combined with the `calculate_chunk_intersections` method in
+`ChunkConfig.py`, the observations may be used to forecast the
+amount of time it takes to download data with any given access
+pattern.
+
+Keep in mind that the observations implicitly include the effects
+of compression since zarr v3 uses zstd compression (level 3) by
+default; both the decrease in payload and the time to decompress.
+
+Also, there may be some nonlinearity caused by concurrency saturating
+bandwidth at a certain point.
+
+**regressions**
+
+- download time per chunk wrt chunk size (each experiment separate)
+- nchunks/PoR wrt open time
+  - if consistent, then histogram of all open times
+- throughput wrt number of chunks requested (volume, multichunk)
+- throughput wrt chunk size (each experiment separate)

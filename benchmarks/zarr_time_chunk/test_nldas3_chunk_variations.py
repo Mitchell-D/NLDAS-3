@@ -259,20 +259,12 @@ def run_benchmark(zarr_url, test_type, var_label,
         "query":query,
         }
 
-def collect_benchmark_result(cur_args, cur_results, json_path):
-    """
-    Adds new results from run_benchmark to a json file.
-    Don't multiprocess over this method!!
-    """
-    if json_path.exists():
-        results = json.load(json_path.open("r"))
-    else:
-        results = {}
-
-    if cur_args["test_type"] not in results.keys():
-        results[cur_args["test_type"]] = {}
-    if cur_args["var_label"] not in results[cur_args["test_type"]].keys():
-        results[cur_args["test_type"]][cur_args["var_label"]] = {
+def collect_benchmark_result(cur_args, cur_results, all_results):
+    """ Adds new results from run_benchmark to a dict of old results """
+    if cur_args["test_type"] not in all_results.keys():
+        all_results[cur_args["test_type"]] = {}
+    if cur_args["var_label"] not in all_results[cur_args["test_type"]].keys():
+        all_results[cur_args["test_type"]][cur_args["var_label"]] = {
             "point_count":[],
             "time_start":[],
             "dt_init":[],
@@ -287,15 +279,14 @@ def collect_benchmark_result(cur_args, cur_results, json_path):
         "seed":cur_args["seed"],
         }
     for k,v in tmp_res_dict.items():
-        results[cur_args["test_type"]][cur_args["var_label"]][k].append(v)
+        all_results[cur_args["test_type"]][cur_args["var_label"]][k].append(v)
     print("Finished benchmark:",
         cur_args["test_type"],
         cur_args["var_label"],
-        len(results[cur_args["test_type"]][cur_args["var_label"]]["seed"]),
+        len(all_results[cur_args["test_type"]][cur_args["var_label"]]["seed"]),
         )
+    return all_results
 
-    json.dump(results, json_path.open("w"), indent=2)
-    return results
 
 def get_chunk_size_combos(time_sizes, lat_sizes, lon_sizes,
         dtype_bytesize=4, chunk_size_bounds_mb=None, area_aspect_bounds=None,
@@ -370,7 +361,8 @@ if __name__=="__main__":
     full_chunk_only = True
     #json_out_path = Path("nldas3_chunk_bench_results_local.json")
     #json_out_path = Path("data/nldas3_chunk_bench_results.json")
-    json_out_path = Path("data/nldas3_chunk_bench_results_fullchunk.json")
+    json_out_path = Path("data/nldas3_chunk_bench_results_fullchunk_2.json")
+    save_results_frequency = 32
 
     nprocs = 6 ## number of concurrent processes for downloading
     #nprocs = 1
@@ -489,6 +481,12 @@ if __name__=="__main__":
     """ run benchmarks and store results """
 
     if run_benchmarks:
+        ## load any existing results
+        if json_out_path.exists():
+            results = json.load(json_out_path.open("r"))
+        else:
+            results = {}
+
         rng = np.random.default_rng(random_seed)
         bench_runs = [
             (cc.as_tuple(),tl)
@@ -519,19 +517,24 @@ if __name__=="__main__":
             } for i,(cctup,tl) in enumerate(bench_runs)]
 
         print(f"Running {len(args)} experiments")
-        results = {}
         if nprocs>1:
             with mp.Pool(nprocs) as pool:
-                for a,r in pool.imap_unordered(mp_run_benchmark, args):
-                    collect_benchmark_result(
+                for i,(a,r) in enumerate(pool.imap_unordered(
+                        mp_run_benchmark, args)):
+                    results = collect_benchmark_result(
                         cur_args=a,
                         cur_results=r,
-                        json_path=json_out_path
+                        all_results=results,
                         )
+                    if i%save_results_frequency==0:
+                        json.dump(results, json_out_path.open("w"))
         else:
-            for a,r in map(mp_run_benchmark, args):
-                collect_benchmark_result(
+            for i,(a,r) in enumerate(map(mp_run_benchmark, args)):
+                results = collect_benchmark_result(
                     cur_args=a,
                     cur_results=r,
-                    json_path=json_out_path,
+                    all_results=results,
                     )
+                if i%save_results_frequency==0:
+                    json.dump(results, json_out_path.open("w"))
+        json.dump(results, json_out_path.open("w"))
