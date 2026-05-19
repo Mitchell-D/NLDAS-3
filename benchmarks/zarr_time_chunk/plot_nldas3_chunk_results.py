@@ -10,8 +10,11 @@ from plotting import plot_scatter,get_listed_cmap
 
 if __name__=="__main__":
     data_dir = Path("data")
-    fig_dir = Path("figures")
-    res_json_path = data_dir.joinpath("nldas3_chunk_bench_results.json")
+    fig_dir = Path("figures/full-chunks")
+    #res_json_path = data_dir.joinpath("nldas3_chunk_bench_results.json")
+    res_json_path = data_dir.joinpath(
+        "nldas3_chunk_bench_results_fullchunk_1.json")
+    run_str = "fc-1"
 
     nldas3_param_path = data_dir.joinpath("nldas3_params.nc")
     results = json.load(res_json_path.open("r"))
@@ -20,8 +23,8 @@ if __name__=="__main__":
 
     plot_variables = ["Tair"]
 
-    plot_StSxy_bitrate_scatter = False
-    plot_land_per_chunk = True
+    plot_StSxy_bitrate_scatter = True
+    plot_land_per_chunk = False
     plot_pareto = False
     plot_size_aspect = False
     plot_size_nchunks = False
@@ -81,7 +84,7 @@ if __name__=="__main__":
                 #size=np.array(sizes)/30000,
                 color=sizes,
                 yerr=(br_p50-br_p25, br_p75-br_p50),
-                labels=[cc.as_tuple() for cc in ccs],
+                #labels=[cc.as_tuple() for cc in ccs],
                 plot_spec={
                     "title":f"Download Efficiency wrt Chunk Aspect ({tl})" + \
                             "\nColored by Size in MB",
@@ -104,7 +107,7 @@ if __name__=="__main__":
                     "norm":"log",
                     },
                 fig_path=fig_dir.joinpath(
-                    f"chunk-bench_StSxy-bitrate_{tl}.png"),
+                    f"chunk-bench_StSxy-bitrate_{tl}_{run_str}.png"),
                 )
 
             plot_scatter(
@@ -115,7 +118,7 @@ if __name__=="__main__":
                 #size=np.array(sizes)/30000,
                 color=sratios,
                 yerr=(br_p50-br_p25, br_p75-br_p50),
-                labels=[cc.as_tuple() for cc in ccs],
+                #labels=[cc.as_tuple() for cc in ccs],
                 plot_spec={
                     "title":f"Download Efficiency wrt Chunk Size ({tl})" + \
                             "\nColored by Times per Area [St Sxy^(-1/2)]",
@@ -134,10 +137,15 @@ if __name__=="__main__":
                     "use_colorbar":True,
                     "cbar_label":"Chunk St/Sxy",
                     "cmap":"rainbow",
+                    "ylim":{
+                        "chunk":[0,1.2e7],
+                        "multichunk":[0,1.2e7],
+                        "volume":[0,6e7],
+                        }.get(tl),
                     #"norm":"log",
                     },
                 fig_path=fig_dir.joinpath(
-                    f"chunk-bench_csize-bitrate_{tl}.png"),
+                    f"chunk-bench_csize-bitrate_{tl}_{run_str}.png"),
                 )
 
             plot_scatter(
@@ -147,7 +155,7 @@ if __name__=="__main__":
                 #size=np.array(sizes)/30000,
                 color=sratios,
                 yerr=(dt_p50-dt_p25, dt_p75-dt_p50),
-                labels=[cc.as_tuple() for cc in ccs],
+                #labels=[cc.as_tuple() for cc in ccs],
                 plot_spec={
                     "title":f"Download Time wrt Chunk Size ({tl})" + \
                             "\nColored by Times per Area",
@@ -166,10 +174,15 @@ if __name__=="__main__":
                     "use_colorbar":True,
                     "cbar_label":"Chunk St/Sxy",
                     "cmap":"rainbow",
+                    "ylim":{
+                        "chunk":[0,4],
+                        "multichunk":[0,125],
+                        "volume":[0,80],
+                        }.get(tl),
                     #"norm":"log",
                     },
                 fig_path=fig_dir.joinpath(
-                    f"chunk-bench_csize-dltime_{tl}.png"),
+                    f"chunk-bench_csize-dltime_{tl}_{run_str}.png"),
                 )
 
     if plot_pareto or plot_size_aspect or plot_size_nchunks:
@@ -225,8 +238,14 @@ if __name__=="__main__":
                         v["nchunks"] for v in results[tl][cl]["test_kwargs"]
                         ])
                     nchunks_partial = nchunks
+                elif tl == "volume":
+                    nchunks = np.average([
+                        np.array(v).shape[0] for v in results[tl][cl]["query"]
+                        ])
+                    nchunks_partial = nchunks
                 else:
                     raise ValueError(f"test label not supported: {tl}")
+
                 psubdict["nchunks"].append(nchunks)
                 psubdict["nchunks_partial"].append(nchunks_partial)
 
@@ -324,7 +343,8 @@ if __name__=="__main__":
                     "norm":"log",
                     },
                 fig_path=fig_dir.joinpath(
-                    f"chunk-bench_pareto-timestep-pixel_full-chunk.png"),
+                    f"chunk-bench_pareto-timestep-pixel" + \
+                    f"_full-chunk_{run_str}.png"),
                 )
 
         if plot_size_aspect:
@@ -365,7 +385,8 @@ if __name__=="__main__":
                     #"vmax":1,
                     },
                 fig_path=fig_dir.joinpath(
-                    f"chunk-bench_pareto-size-aspect_full-chunk_area.png"),
+                    f"chunk-bench_pareto-size-aspect_" + \
+                    f"full-chunk_area_{run_str}.png"),
                 )
             plot_scatter(
                 x=[np.log10(cc.size*4/1000**2) for cc in shared_ccs], ## mb
@@ -402,7 +423,8 @@ if __name__=="__main__":
                     #"vmax":.3,
                     },
                 fig_path=fig_dir.joinpath(
-                    f"chunk-bench_pareto-size-aspect_full-chunk_time.png"),
+                    f"chunk-bench_pareto-size-aspect_full-chunk_" + \
+                    f"time_{run_str}.png"),
                 )
             plot_scatter(
                 x=[np.log10(cc.size*4/1000**2) for cc in shared_ccs], ## mb
@@ -439,7 +461,8 @@ if __name__=="__main__":
                     #"vmax":1.,
                     },
                 fig_path=fig_dir.joinpath(
-                    f"chunk-bench_pareto-size-aspect_full-chunk_chunk.png"),
+                    f"chunk-bench_pareto-size-aspect_full-chunk_chunk"
+                    f"_{run_str}.png"),
                 )
 
         if plot_size_nchunks:
@@ -487,7 +510,8 @@ if __name__=="__main__":
                     #"vmax":1,
                     },
                 fig_path=fig_dir.joinpath(
-                    f"chunk-bench_pareto-size-nchunk_full-chunk_all.png"),
+                    f"chunk-bench_pareto-size-nchunk_full-chunk_all" + \
+                    f"_{run_str}.png"),
                 )
 
         pp25,pp50,pp75,csize = list(map(np.asarray, zip(*[
@@ -539,7 +563,8 @@ if __name__=="__main__":
                     "norm":"log",
                     },
                 fig_path=fig_dir.joinpath(
-                    f"chunk-bench_pareto-timestep-pixel_valid-pixels.png"),
+                    f"chunk-bench_pareto-timestep-pixel_" + \
+                    f"valid-pixels_{run_str}.png"),
                 )
 
         if plot_size_aspect:
@@ -581,7 +606,8 @@ if __name__=="__main__":
                     #"norm":"log",
                     },
                 fig_path=fig_dir.joinpath(
-                    f"chunk-bench_pareto-size-aspect_valid-pixels_area.png"),
+                    f"chunk-bench_pareto-size-aspect_valid-pixels " + \
+                    f"_area_{run_str}.png"),
                 )
             plot_scatter(
                 x=[np.log10(cc.size*4/1000**2) for cc in shared_ccs],
@@ -618,7 +644,8 @@ if __name__=="__main__":
                     #"norm":"log",
                     },
                 fig_path=fig_dir.joinpath(
-                    f"chunk-bench_pareto-size-aspect_valid-pixels_time.png"),
+                    f"chunk-bench_pareto-size-aspect_valid-pixels" + \
+                    f"_time_{run_str}.png"),
                 )
 
     if plot_land_per_chunk:
@@ -689,6 +716,6 @@ if __name__=="__main__":
                 #"norm":"log",
                 },
             fig_path=fig_dir.joinpath(
-                f"chunk-bench_csize-ceff.png"),
+                f"chunk-bench_csize-ceff_{run_str}.png"),
             )
 

@@ -394,6 +394,12 @@ def plot_scatter(x, y, size=None, color=None, xerr=None, yerr=None,
     ax.set_ylabel(ps.get("ylabel"), fontsize=ps.get("label_fontsize"))
     ax.set_title(ps.get("title"), fontsize=ps.get("title_fontsize"))
 
+    if not ps.get("ylim") is None:
+        ax.set_ylim(*ps.get("ylim"))
+    if not ps.get("xlim") is None:
+        ax.set_xlim(*ps.get("xlim"))
+
+
     ax.tick_params(
         axis="both", which="major", labelsize=ps.get("tick_fontsize")
         )
@@ -498,6 +504,11 @@ def plot_geo_ints(int_data, lat, lon, shapes=None,
     if geo_bounds is None:
         geo_bounds = [np.amin(lon), np.amax(lon), np.amin(lat), np.amax(lat)]
     ax.set_extent(geo_bounds, crs=ccrs.PlateCarree())
+
+    if not ps.get("ylim") is None:
+        ax.set_ylim(*ps.get("ylim"))
+    if not ps.get("xlim") is None:
+        ax.set_xlim(*ps.get("xlim"))
 
     m_invalid = ~np.isfinite(int_data)
     int_data[m_invalid] = int_data[~m_invalid][0]

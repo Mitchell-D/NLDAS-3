@@ -361,10 +361,10 @@ if __name__=="__main__":
     full_chunk_only = True
     #json_out_path = Path("nldas3_chunk_bench_results_local.json")
     #json_out_path = Path("data/nldas3_chunk_bench_results.json")
-    json_out_path = Path("data/nldas3_chunk_bench_results_fullchunk_2.json")
+    json_out_path = Path("data/nldas3_chunk_bench_results_fullchunk_3.json")
     save_results_frequency = 32
 
-    nprocs = 6 ## number of concurrent processes for downloading
+    nprocs = 24 ## number of concurrent processes for downloading
     #nprocs = 1
 
     ## run default
