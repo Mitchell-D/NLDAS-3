@@ -1,55 +1,76 @@
 import numpy as np
+import math
+import json
 from pathlib import Path
 
 from ChunkConfig import ChunkConfig,calculate_chunk_intersections
-from plotting import plot_point_cloud_3d
+from plotting import plot_colored_lines
 
 if __name__=="__main__":
     grid_shape = (8400, 6500, 11700)
-
-    #time_sizes = [1, 4, 8, 12, 16, 24, 32, 48, 64, 96, 128, 192, 256]
-    #latlon_common = [1, 4, 10, 25, 50, 65, 100, 130, 260, 325, 650]
-    time_sizes = [4, 8, 16, 24, 32, 48, 96, 128, 256]
-    latlon_common = [25, 65, 100, 130, 260, 325, 650]
-    lat_sizes = [*latlon_common, 500]
-    lon_sizes = [*latlon_common, 180, 450]
-    dtype_bytesize = 4
-    chunk_size_bounds_mb = (0.1, 32) ## 100 KB to 16 MB
-    area_aspect_bounds = (1/5, 5) ## lat/lon size
-    access_patterns = [
-        (8400, 1, 1),
-        (1, 512, 512),
-        (24, 512, 512),
-        (1200, 64, 64),
+    fig_dir = Path("figures")
+    dtype_size = 4
+    chunk_sizes_mb = np.arange(1, 81, 5) / 2
+    time_sizes = np.arange(1, 513, 8)
+    volume_shape = (365, 256, 256)
+    sub_shapes = [
+        (1, *grid_shape[1:]),
+        (grid_shape[0], 1, 1),
+        (365, 256, 256),
+        (365*5, 256, 256),
+        (31, 1000, 1800),
+        (14, 2400, 6000),
         ]
 
-    """ -----( end normal config )----- """
+    npoints = chunk_sizes_mb * 1000**2 / dtype_size
 
-    layouts = np.stack(np.meshgrid(
-        time_sizes, lat_sizes, lon_sizes, indexing="ij"
-        ), axis=0).reshape(3, -1)
+    intersections = {}
+    for i in range(npoints.size):
+        Smb = chunk_sizes_mb[i]
+        C = npoints[i] ## chunk size in points
+        intersections[Smb] = {
+            "aspect":[],
+            "ccounts":{k:[] for k in sub_shapes},
+            }
+        for Ct in time_sizes:
+            ## square spatial side length
+            Cxy = int(math.floor((C/Ct)**(1/2)))
+            #A = Ct**(3/2) * C**(-1/2)
+            #A = Ct/Cxy
+            A = int(Ct)
+            intersections[Smb]["aspect"].append(A) ## aspect ratio
+            for ss in sub_shapes:
+                ## single pixel column
+                intersections[Smb]["ccounts"][ss].append(
+                    calculate_chunk_intersections(
+                        grid_shape=grid_shape,
+                        chunk_shape=(Ct, Cxy, Cxy),
+                        subset_shape=ss,
+                        product=True,
+                        )[-1]
+                    )
 
-    ## resrtrict by chunk size per chunk_size_bounds_mb
-    chunk_sizes_mb = np.prod(layouts, axis=0) * dtype_bytesize / 1000**2
-    m_size = (chunk_sizes_mb > chunk_size_bounds_mb[0]) \
-            & (chunk_sizes_mb < chunk_size_bounds_mb[1])
-    layouts = layouts[:,m_size]
-
-    ## restrict by area aspect ratio via area_aspect_bounds
-    chunk_area_asp = layouts[1] / layouts[2]
-    m_asp = (chunk_area_asp > area_aspect_bounds[0]) \
-            & (chunk_area_asp < area_aspect_bounds[1])
-    layouts = layouts[:,m_asp]
-
-    ## rule out chunks with dimensions that are permutations of other configs
-    a,ixs,cnts = np.unique(
-            np.sort(layouts, axis=0),
-            axis=1,
-            return_index=True,
-            return_counts=True,
+    for ss in sub_shapes:
+        cstr = "-".join(map(str, ss))
+        fig_path = fig_dir.joinpath(f"chunk-geom_count_{cstr}.png")
+        plot_colored_lines(
+            domain_lines=[
+                intersections[Smb]["aspect"]
+                for Smb in chunk_sizes_mb
+                ],
+            range_lines=[
+                intersections[Smb]["ccounts"][ss]
+                for Smb in chunk_sizes_mb
+                ],
+            color_values=chunk_sizes_mb,
+            plot_spec={
+                "title":f"Chunks to get subset {ss}",
+                #"xlabel":f"Aspect ratio Ct (Cx Cy)^(-1/2)",
+                "xlabel":f"Timesteps per chunk",
+                "ylabel":"Chunk Count",
+                "cb_label":"Chunk Size (MB)",
+                "cmap":"plasma",
+                "yscale":"log"
+                },
+            fig_path=fig_path,
             )
-    layouts = layouts[:,ixs]
-
-    print(layouts.T)
-    print(layouts.shape)
-    print(np.prod(layouts, axis=0))

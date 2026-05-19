@@ -11,7 +11,7 @@ based on a 1000x1800 subdomain of a single variable's daily data over
 for each of the tested chunk variations.
 
 <p align="center">
-   <img src="figures/poly_nldas3_chunks_500-900.png" width=80%>
+   <img src="figures/poly/poly_nldas3_chunks_500-900.png" width=80%>
 </p>
 
 The figure above illustrates the current chunk layout on the NLDAS-3
@@ -307,5 +307,5 @@ bandwidth at a certain point.
 - download time per chunk wrt chunk size (each experiment separate)
 - nchunks/PoR wrt open time
   - if consistent, then histogram of all open times
-- throughput wrt number of chunks requested (volume, multichunk)
+- **throughput wrt number of chunks requested (volume, multichunk)**
 - throughput wrt chunk size (each experiment separate)

@@ -2,6 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
+import matplotlib.cm as cm
+import matplotlib.colors as mcolors
 
 from pathlib import Path
 from matplotlib.colors import ListedColormap
@@ -573,6 +575,61 @@ def plot_geo_ints(int_data, lat, lon, shapes=None,
 
         cbar.set_label(ps.get("cbar_label"))
     ax.set_title(ps.get("title", ""), fontsize=ps.get("title_fontsize", 18))
+    if not fig_path is None:
+        fig.set_size_inches(*ps.get("figsize"))
+        fig.savefig(
+            fig_path.as_posix(),
+            bbox_inches="tight",
+            dpi=ps.get("dpi", 100),
+            )
+    if show:
+        plt.show()
+    plt.close()
+    return
+
+def plot_colored_lines(domain_lines, range_lines, color_values, plot_spec={},
+        show=False, fig_path=None):
+    """
+    Plots multiple lines on the same axes with colors mapped to a color bar.
+    """
+    ps = { "title": "", "xlabel": "", "ylabel": "", "xlim": None, "ylim": None,
+        "cmap": "viridis", "figsize": (8, 6), "line_width": 2, "cb_label":"",
+        "xscale":"linear", "yscale":"linear",
+        }
+
+    ps.update(plot_spec)
+
+    fig, ax = plt.subplots(figsize=ps.get("figsize"))
+
+    ## create colormap and normalization
+    cmap = cm.get_cmap(ps.get("cmap"))
+    norm = mcolors.Normalize(
+        vmin=np.min(color_values),
+        vmax=np.max(color_values)
+        )
+
+    for x, y, c in zip(domain_lines, range_lines, color_values):
+        ax.plot(x, y, color=cmap(norm(c)), linewidth=ps.get("line_width"))
+
+    ## add colorbar with color_values as ticks
+    sm = cm.ScalarMappable(cmap=cmap, norm=norm)
+    sm.set_array([])
+    cbar = fig.colorbar(sm, ax=ax)
+    cbar.set_label(ps.get("cb_label"))
+    unique_values = np.unique(color_values)
+    cbar.set_ticks(unique_values)
+    cbar.set_ticklabels([f"{v:.2f}" for v in unique_values])
+
+    ax.set_title(ps.get("title"))
+    ax.set_xlabel(ps.get("xlabel"))
+    ax.set_ylabel(ps.get("ylabel"))
+    if ps.get("xlim"):
+        ax.set_xlim(ps.get("xlim"))
+    if ps.get("ylim"):
+        ax.set_ylim(ps.get("ylim"))
+    ax.set_xscale(ps.get("xscale"))
+    ax.set_yscale(ps.get("yscale"))
+
     if not fig_path is None:
         fig.set_size_inches(*ps.get("figsize"))
         fig.savefig(
