@@ -8,18 +8,20 @@ from plotting import plot_colored_lines
 
 if __name__=="__main__":
     grid_shape = (8400, 6500, 11700)
-    fig_dir = Path("figures")
+    fig_dir = Path("figures/chunk-geom")
     dtype_size = 4
     chunk_sizes_mb = np.arange(1, 81, 5) / 2
     time_sizes = np.arange(1, 513, 8)
     volume_shape = (365, 256, 256)
     sub_shapes = [
-        (1, *grid_shape[1:]),
         (grid_shape[0], 1, 1),
+        (365*5, 128, 128),
         (365, 256, 256),
-        (365*5, 256, 256),
-        (31, 1000, 1800),
+        (128, 512, 512),
+        (64, 1024, 1024),
+        (31, 1400, 2000),
         (14, 2400, 6000),
+        (1, *grid_shape[1:]),
         ]
 
     npoints = chunk_sizes_mb * 1000**2 / dtype_size
@@ -70,6 +72,31 @@ if __name__=="__main__":
                 "ylabel":"Chunk Count",
                 "cb_label":"Chunk Size (MB)",
                 "cmap":"plasma",
+                "ylim":[10,10**6],
+                "yscale":"log"
+                },
+            fig_path=fig_path,
+            )
+
+        fig_path = fig_dir.joinpath(f"chunk-geom_bytes_{cstr}.png")
+        plot_colored_lines(
+            domain_lines=[
+                intersections[Smb]["aspect"]
+                for Smb in chunk_sizes_mb
+                ],
+            range_lines=[
+                np.array(intersections[Smb]["ccounts"][ss]) * Smb
+                for Smb in chunk_sizes_mb
+                ],
+            color_values=chunk_sizes_mb,
+            plot_spec={
+                "title":f"Megbaytes downloaded to get subset {ss}",
+                #"xlabel":f"Aspect ratio Ct (Cx Cy)^(-1/2)",
+                "xlabel":f"Timesteps per chunk",
+                "ylabel":"Total Downloaded Size (MB)",
+                "cb_label":"Chunk Size (MB)",
+                "cmap":"plasma",
+                "ylim":[10,10**6],
                 "yscale":"log"
                 },
             fig_path=fig_path,

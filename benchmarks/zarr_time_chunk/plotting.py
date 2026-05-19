@@ -240,6 +240,7 @@ def plot_nested_bars(data_dict:dict, labels:dict={}, plot_error_bars=False,
     plt.close()
     return
 
+'''
 def plot_scatter(x, y, size=None, color=None, xerr=None, yerr=None,
         labels=None, plot_spec={}, fig_path=None, show=False):
     """
@@ -401,6 +402,224 @@ def plot_scatter(x, y, size=None, color=None, xerr=None, yerr=None,
     if not ps.get("xlim") is None:
         ax.set_xlim(*ps.get("xlim"))
 
+
+    ax.tick_params(
+        axis="both", which="major", labelsize=ps.get("tick_fontsize")
+        )
+    ax.tick_params(axis="both", which="minor",
+                   labelsize=ps.get("tick_fontsize"))
+
+    if ps.get("tight_layout"):
+        plt.tight_layout()
+
+    if show:
+        plt.show()
+
+    if fig_path:
+        fig.savefig(
+            fig_path.as_posix(),
+            bbox_inches="tight",
+            dpi=ps.get("dpi")
+            )
+
+    plt.close()
+'''
+
+def plot_scatter(x, y, size=None, color=None, xerr=None, yerr=None,
+        labels=None, lines=None, plot_spec={}, fig_path=None, show=False):
+    """
+    scatter plot with optional error bars and point labels, including optional
+    label collision avoidance. Optionally overlay line plots via `lines`.
+
+    lines: list of dicts, each with:
+        - "x": array-like x data (required)
+        - "y": array-like y data (required)
+        - "label": legend label (optional)
+        - "color": line color (optional)
+        - "linestyle": e.g. "-", "--", ":" (optional)
+        - "linewidth": float (optional)
+        - "zorder": int (optional)
+    """
+    ps = {
+        "xlabel":"", "ylabel":"", "marker_size":4, "dpi":200, "cmap":"jet",
+        "text_size":12, "title":"", "norm":"linear", "marker":"o",
+        "cbar_shrink":1., "map_linewidth":2, "title_fontsize":14,
+        "legend_fontsize":14, "tick_fontsize":10, "legend_ncols":1,
+        ## error bar defaults
+        "errorbar_fmt":"none", "errorbar_ecolor":"black",
+        "errorbar_elinewidth":1, "errorbar_capsize":2,
+        ## label defaults
+        "label_offset":(2,2), "label_fontsize":10,
+        "point_label_color":"black", "label_ha":"right", "label_va":"bottom",
+        ## collision avoidance
+        "avoid_label_overlap":True, "adjust_text_expand":(1.05,1.2),
+        "adjust_text_force":(0.1, 0.25),
+        "adjust_text_arrowprops":{"arrowstyle":"-", "color":"gray", "lw":0.5},
+        ## legend
+        "use_point_legend":False, "legend_loc":"best",
+        "legend_marker_scale":1.5,
+        ## color bar
+        "use_colorbar":False, "cbar_label":None, "cbar_label_fontsize":12,
+        "cbar_tick_fontsize":10, "cbar_orient":"vertical",
+        ## line defaults
+        "line_color":None, "line_linestyle":"-", "line_linewidth":1.5,
+        "line_legend_loc":"best",
+        }
+
+    ps.update(plot_spec)
+    plt.rcParams.update({"font.size": ps["text_size"]})
+
+    fig, ax = plt.subplots(figsize=ps.get("fig_size"))
+
+    sc = ax.scatter(
+        x=x, y=y,
+        s=size,
+        c=color,
+        marker=ps.get("marker"),
+        cmap=ps.get("cmap"),
+        vmin=ps.get("vmin"),
+        vmax=ps.get("vmax"),
+        norm=ps.get("norm"),
+        linewidths=ps.get("linewidths"),
+        )
+
+    if ps.get("use_colorbar") and color is not None:
+        try:
+            ## check if numeric
+            c_array = np.asarray(color)
+            if np.issubdtype(c_array.dtype, np.number):
+                cbar = fig.colorbar(
+                        sc, ax=ax,
+                        shrink=ps.get("cbar_shrink"),
+                        orientation=ps.get("cbar_orient"),
+                        )
+                if ps.get("cbar_label"):
+                    cbar.set_label(
+                        ps.get("cbar_label"),
+                        fontsize=ps.get("cbar_label_fontsize")
+                        )
+                cbar.ax.tick_params(
+                    labelsize=ps.get("cbar_tick_fontsize")
+                    )
+            else:
+                print("Colorbar skipped: 'color' is not numeric.")
+        except Exception:
+            print("Colorbar skipped: could not interpret 'color'.")
+
+    ## optional error bars
+    if xerr is not None or yerr is not None:
+        ax.errorbar(
+            x, y,
+            xerr=xerr,
+            yerr=yerr,
+            fmt=ps.get("errorbar_fmt"),
+            ecolor=ps.get("errorbar_ecolor"),
+            elinewidth=ps.get("errorbar_elinewidth"),
+            capsize=ps.get("errorbar_capsize"),
+            zorder=0
+            )
+
+    texts = []
+
+    ## optional labels
+    if labels is not None:
+        dx,dy = ps.get("label_offset")
+        for xi,yi,lab in zip(x,y,labels):
+            txt = ax.annotate(
+                str(lab),
+                (xi, yi),
+                textcoords="offset points",
+                xytext=(dx, dy),
+                fontsize=ps.get("point_label_fontsize", 10),
+                color=ps.get("point_label_color"),
+                rotation=ps.get("point_label_rotation"),
+                ha=ps.get("label_ha"),
+                va=ps.get("label_va"),
+                )
+            texts.append(txt)
+
+    # optional collision avoidance
+    if ps.get("avoid_label_overlap") and texts:
+        try:
+            from adjustText import adjust_text
+
+            adjust_text(
+                texts,
+                ax=ax,
+                expand=ps.get("adjust_text_expand"),
+                force_text=ps.get("adjust_text_force"),
+                arrowprops=ps.get("adjust_text_arrowprops"),
+                )
+        except ImportError:
+            print("adjustText not installed; skipping collision avoidance.")
+
+    ## optional lines with their own legend
+    if lines is not None:
+        line_handles = []
+        for line in lines:
+            (ln,) = ax.plot(
+                line["x"],
+                line["y"],
+                color=line.get("color", ps.get("line_color")),
+                linestyle=line.get("linestyle", ps.get("line_linestyle")),
+                linewidth=line.get("linewidth", ps.get("line_linewidth")),
+                zorder=line.get("zorder"),
+                label=line.get("label"),
+                )
+            if line.get("label"):
+                line_handles.append(ln)
+        if line_handles:
+            ax.legend(
+                handles=line_handles,
+                fontsize=ps.get("legend_fontsize"),
+                ncol=ps.get("legend_ncols"),
+                loc=ps.get("line_legend_loc"),
+                )
+
+    ## point legend
+    if ps.get("use_point_legend") and labels is not None:
+        handles = []
+        seen = {}
+
+        # normalize color handling
+        if hasattr(color, "__len__"):
+            colors = color
+        else:
+            colors = [color] * len(x)
+
+        for xi, yi, lab, ci in zip(x, y, labels, colors):
+            key = (lab, ci, ps.get("marker"))
+
+            if key in seen:
+                continue
+
+            handle = Line2D(
+                [0], [0],
+                marker=ps.get("marker"),
+                color="none",
+                markerfacecolor=ci,
+                markersize=ps.get("legend_marker_scale")*ps.get("marker_size"),
+                label=str(lab)
+                )
+
+            handles.append(handle)
+            seen[key] = True
+
+        ax.legend(
+            handles=handles,
+            fontsize=ps.get("legend_fontsize"),
+            ncol=ps.get("legend_ncols"),
+            loc=ps.get("legend_loc")
+            )
+
+    ax.set_xlabel(ps.get("xlabel"), fontsize=ps.get("label_fontsize"))
+    ax.set_ylabel(ps.get("ylabel"), fontsize=ps.get("label_fontsize"))
+    ax.set_title(ps.get("title"), fontsize=ps.get("title_fontsize"))
+
+    if not ps.get("ylim") is None:
+        ax.set_ylim(*ps.get("ylim"))
+    if not ps.get("xlim") is None:
+        ax.set_xlim(*ps.get("xlim"))
 
     ax.tick_params(
         axis="both", which="major", labelsize=ps.get("tick_fontsize")

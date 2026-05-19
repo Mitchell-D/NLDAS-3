@@ -1,3 +1,8 @@
+"""
+Script for plotting benchmark results, mainly for 'pixel' and 'timestep'
+experiments. I realized after running these tests that the results were
+seriously affected by chunks that were smaller than the full size.
+"""
 import numpy as np
 import json
 import matplotlib.pyplot as plt
