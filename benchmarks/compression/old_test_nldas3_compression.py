@@ -83,9 +83,9 @@ if __name__=="__main__":
         "zstd-5":{"cname":"zstd", "clevel":5, "shuffle":"bitshuffle"},
         "zstd-8":{"cname":"zstd", "clevel":8, "shuffle":"bitshuffle"},
 
-        "lz4":{"cname":"lz4", "clevel":1, "shuffle":"bitshuffle"},
-        "lz4":{"cname":"lz4", "clevel":5, "shuffle":"bitshuffle"},
-        "lz4":{"cname":"lz4", "clevel":8, "shuffle":"bitshuffle"},
+        "lz4-1":{"cname":"lz4", "clevel":1, "shuffle":"bitshuffle"},
+        "lz4-5":{"cname":"lz4", "clevel":5, "shuffle":"bitshuffle"},
+        "lz4-8":{"cname":"lz4", "clevel":8, "shuffle":"bitshuffle"},
 
         "blosclz-1":{"cname":"blosclz", "clevel":1, "shuffle":"bitshuffle"},
         "blosclz-5":{"cname":"blosclz", "clevel":5, "shuffle":"bitshuffle"},
