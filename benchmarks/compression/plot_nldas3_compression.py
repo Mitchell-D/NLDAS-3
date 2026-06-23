@@ -17,9 +17,11 @@ if __name__=="__main__":
     exclude_pipelines = [
         "dtype:f4_bitround:6_zstd:bitshuffle", ## error way too high
         "dtype:f4_bitround:6", ## no cr since no compression
+        "dtype:f4_bitround:9", ## no cr since no compression
+        "dtype:f4_bitround:10", ## no cr since no compression
         "dtype:f4_bitround:12", ## no cr since no compression
-        "dtype:f2_lz4hc",
-        "dtype:f2_zstd",
+        "dtype:f2_lz4hc", ## way too much truncation error
+        "dtype:f2_zstd", ## way too much truncation error
         ]
 
     pipeline_groups = {
@@ -36,15 +38,18 @@ if __name__=="__main__":
             "dtype:f4_bitround:12_zstd:bitshuffle",
             "dtype:f4_bitround:10",
             "dtype:f4_bitround:10_zstd:bitshuffle",
+            "dtype:f4_bitround:9_zstd:bitshuffle",
             "dtype:f4_bitround:8",
             "dtype:f4_bitround:8_zstd:bitshuffle",
             "dtype:f4_bitround:6",
             "dtype:f4_bitround:6_zstd:bitshuffle",
             "dtype:f4_bitround:12_zfpy_zstd:bitshuffle",
             "dtype:f4_bitround:10_zfpy_zstd:bitshuffle",
+            "dtype:f4_bitround:9_zfpy_zstd:bitshuffle",
             "dtype:f4_bitround:8_zfpy_zstd:bitshuffle",
             "dtype:f4_bitround:12_pcodec_zstd:bitshuffle",
             "dtype:f4_bitround:10_pcodec_zstd:bitshuffle",
+            "dtype:f4_bitround:9_pcodec_zstd:bitshuffle",
             "dtype:f4_bitround:8_pcodec_zstd:bitshuffle",
             ],
         "norm-custom":[
@@ -52,25 +57,28 @@ if __name__=="__main__":
             "dtype:f4_intnorm:custom_delta:u2,u2_zstd:5,bitshuffle",
             "dtype:f4_intnorm:custom_zstd:bitshuffle",
             "dtype:f4_intnorm:custom_zstd:shuffle",
+            "dtype:f4_intnorm:custom,i4_zfpy_zstd:5,bitshuffle",
+            "dtype:f4_intnorm:custom_pcodec_zstd:5,bitshuffle",
+            "dtype:f4_intnorm:custom,u4_pcodec_zstd:5,bitshuffle",
             ],
         "norm-4096":[
             "dtype:f4_intnorm:4096",
-            "dtype:f4_intnorm:4096,u4_pcodec_zstd:5,bitshuffle",
             "dtype:f4_intnorm:4096_delta:u2,u2_zstd:5,bitshuffle",
             "dtype:f4_intnorm:4096_zstd",
             "dtype:f4_intnorm:4096_zstd:bitshuffle",
             "dtype:f4_intnorm:4096_zstd:shuffle",
-            "dtype:f4_intnorm:4096,u4_zfpy_zstd:5,bitshuffle",
-            "dtype:f4_intnorm:4096,u4_pcodec_zstd:5,bitshuffle",
+            "dtype:f4_intnorm:4096,i4_zfpy_zstd:5,bitshuffle",
             "dtype:f4_intnorm:4096_pcodec_zstd:5,bitshuffle",
+            "dtype:f4_intnorm:4096,u4_pcodec_zstd:5,bitshuffle",
             ],
         "norm-2048":[
             "dtype:f4_intnorm:2048",
             "dtype:f4_intnorm:2048_delta:u2,u2_zstd:5,bitshuffle",
             "dtype:f4_intnorm:2048_zstd:bitshuffle",
             "dtype:f4_intnorm:2048_zstd:shuffle",
-            "dtype:f4_intnorm:2048,u4_zfpy_zstd:5,bitshuffle",
-            "dtype:f4_intnorm:2048,u4_pcodec_zstd:5,bitshuffle",
+            "dtype:f4_intnorm:2048,i4_zfpy_zstd:5,bitshuffle",
+            "dtype:f4_intnorm:2048_pcodec_zstd:5,bitshuffle",
+            "dtype:f4_intnorm:2048,u4_pcodec_zstd:5,bitshuffle"
             ]
         }
     pipeline_groups["norm-all"] = pipeline_groups["norm-custom"] \
@@ -140,10 +148,10 @@ if __name__=="__main__":
         for (gk,fk,rk),pks in plot_combos.items():
             pdata = [results[fk][pk][rk] for pk in pks]
             cr = np.array([d["total_size"]/d["chunk_size"] for d in pdata])
-            ## (pipeline, timstep)
+            ## (pipeline, timstep) MB/s
             rt = np.array([
-                d["total_size"]/1000**2 / \
-                        np.array(d["load_time"])/len(d["load_time"])
+                d["total_size"] / len(d["load_time"]) / 1000**2 \
+                        / np.array(d["load_time"])
                 for d in pdata
                 ])
             rt25,rt50,rt75 = np.percentile(rt, [25,50,75], axis=-1)
@@ -183,7 +191,7 @@ if __name__=="__main__":
                 plot_spec={
                     "title":"Compression vs Access Speed " + \
                             f"\n({tres} {fk} {rk} {gk})",
-                    "ylabel":"Disc Read Time (MB/s) w/ IQR",
+                    "ylabel":"Load Throughput (MB/s) w/ IQR",
                     "xlabel":"Compression Ratio (uncomp/comp)",
                     #"xscale":"log",
                     "point_label_fontsize":3.5,
@@ -230,6 +238,11 @@ if __name__=="__main__":
                 d["error_stats"]["absstdv"] / 2
                 for d in pdata
                 ])
+            er_max = np.array([
+                max(d["error_stats"]["max"], abs(d["error_stats"]["min"])) \
+                        - d["error_stats"]["absmean"]
+                for d in pdata
+                ])
             rt = np.average([
                 d["total_size"]/1000**2 / \
                         np.array(d["load_time"])/len(d["load_time"])
@@ -263,7 +276,7 @@ if __name__=="__main__":
                 y=er,
                 #size=np.array(sizes)/30000,
                 color=color,
-                yerr=(er_stdv, er_stdv),
+                yerr=((0,)*er_max.size, er_max),
                 labels=pks,
                 plot_spec={
                     "title":"Compression vs Trunc Error " + \

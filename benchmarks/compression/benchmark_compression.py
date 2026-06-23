@@ -245,17 +245,17 @@ if __name__=="__main__":
 
         "dtype:f4_bitround:12_zfpy_zstd:bitshuffle",
         "dtype:f4_bitround:10_zfpy_zstd:bitshuffle",
+        "dtype:f4_bitround:9_zfpy_zstd:bitshuffle",
         "dtype:f4_bitround:8_zfpy_zstd:bitshuffle",
 
         "dtype:f4_bitround:12_pcodec_zstd:bitshuffle",
         "dtype:f4_bitround:10_pcodec_zstd:bitshuffle",
+        "dtype:f4_bitround:9_pcodec_zstd:bitshuffle",
         "dtype:f4_bitround:8_pcodec_zstd:bitshuffle",
 
         "dtype:f4_bitround:12_zstd:bitshuffle",
         "dtype:f4_bitround:10_zstd:bitshuffle",
-        "dtype:f4_bitround:8_zstd:bitshuffle",
-        "dtype:f4_bitround:12_zstd:bitshuffle",
-        "dtype:f4_bitround:10_zstd:bitshuffle",
+        "dtype:f4_bitround:9_zstd:bitshuffle",
         "dtype:f4_bitround:8_zstd:bitshuffle",
         #"dtype:f4_bitround:12",
         #"dtype:f4_bitround:6",

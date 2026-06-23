@@ -227,6 +227,8 @@ pipeline_config = [
     ("f4",[("bitround",{"keepbits":12}), ("zstd",{"shuffle":"bitshuffle"})]),
     ("f4",[("bitround",{"keepbits":10})]),
     ("f4",[("bitround",{"keepbits":10}), ("zstd",{"shuffle":"bitshuffle"})]),
+    ("f4",[("bitround",{"keepbits":9})]),
+    ("f4",[("bitround",{"keepbits":9}), ("zstd",{"shuffle":"bitshuffle"})]),
     ("f4",[("bitround",{"keepbits":8})]),
     ("f4",[("bitround",{"keepbits":8}), ("zstd",{"shuffle":"bitshuffle"})]),
     ("f4",[("bitround",{"keepbits":6})]),
@@ -242,6 +244,11 @@ pipeline_config = [
         ("zstd",{"shuffle":"bitshuffle"})
         ]),
     ("f4",[
+        ("bitround",{"keepbits":9}),
+        ("zfpy",{}),
+        ("zstd",{"shuffle":"bitshuffle"})
+        ]),
+    ("f4",[
         ("bitround",{"keepbits":8}),
         ("zfpy",{}),
         ("zstd",{"shuffle":"bitshuffle"})
@@ -253,6 +260,11 @@ pipeline_config = [
         ]),
     ("f4",[
         ("bitround",{"keepbits":10}),
+        ("pcodec",{}),
+        ("zstd",{"shuffle":"bitshuffle"})
+        ]),
+    ("f4",[
+        ("bitround",{"keepbits":9}),
         ("pcodec",{}),
         ("zstd",{"shuffle":"bitshuffle"})
         ]),
