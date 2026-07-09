@@ -14,6 +14,7 @@ if __name__=="__main__":
 
     plot_feats = ["Tair", "PSurf", "SWdown"]
     plot_regions = ["midwest", "desertw", "alaska"]
+    plot_chunks = ["32,325,450", "8,650,900", "64,325,225"]
     exclude_pipelines = [
         "dtype:f4_bitround:6_zstd:bitshuffle", ## error way too high
         "dtype:f4_bitround:6", ## no cr since no compression
@@ -30,24 +31,50 @@ if __name__=="__main__":
             "dtype:f2_zstd",
             "dtype:f4_lz4hc",
             "dtype:f4_zstd"
+
+            "dtype:f4_zstd:bitshuffle",
+            "dtype:f4_zstd:8,bitshuffle",
             ],
         "bitround":[
-            "dtype:f4_bitround:6_zstd:bitshuffle",
-            "dtype:f4_bitround:12_zstd:bitshuffle",
             "dtype:f4_bitround:12",
-            "dtype:f4_bitround:12_zstd:bitshuffle",
             "dtype:f4_bitround:10",
+            "dtype:f4_bitround:8",
+            "dtype:f4_bitround:6",
+
+            "dtype:f4_bitround:12_zstd:8,bitshuffle",
+            "dtype:f4_bitround:11_zstd:8,bitshuffle",
+            "dtype:f4_bitround:10_zstd:8,bitshuffle",
+            "dtype:f4_bitround:9_zstd:8,bitshuffle",
+            "dtype:f4_bitround:8_zstd:8,bitshuffle",
+            "dtype:f4_bitround:6_zstd:8,bitshuffle",
+
+            "dtype:f4_bitround:12_zfpy_zstd:8,bitshuffle",
+            "dtype:f4_bitround:11_zfpy_zstd:8,bitshuffle",
+            "dtype:f4_bitround:10_zfpy_zstd:8,bitshuffle",
+            "dtype:f4_bitround:9_zfpy_zstd:8,bitshuffle",
+            "dtype:f4_bitround:8_zfpy_zstd:8,bitshuffle",
+
+            "dtype:f4_bitround:12_pcodec_zstd:8,bitshuffle",
+            "dtype:f4_bitround:11_pcodec_zstd:8,bitshuffle",
+            "dtype:f4_bitround:10_pcodec_zstd:8,bitshuffle",
+            "dtype:f4_bitround:9_pcodec_zstd:8,bitshuffle",
+            "dtype:f4_bitround:8_pcodec_zstd:8,bitshuffle",
+
+            "dtype:f4_bitround:12_zstd:bitshuffle",
+            "dtype:f4_bitround:11_zstd:bitshuffle",
             "dtype:f4_bitround:10_zstd:bitshuffle",
             "dtype:f4_bitround:9_zstd:bitshuffle",
-            "dtype:f4_bitround:8",
             "dtype:f4_bitround:8_zstd:bitshuffle",
-            "dtype:f4_bitround:6",
             "dtype:f4_bitround:6_zstd:bitshuffle",
+
             "dtype:f4_bitround:12_zfpy_zstd:bitshuffle",
+            "dtype:f4_bitround:11_zfpy_zstd:bitshuffle",
             "dtype:f4_bitround:10_zfpy_zstd:bitshuffle",
             "dtype:f4_bitround:9_zfpy_zstd:bitshuffle",
             "dtype:f4_bitround:8_zfpy_zstd:bitshuffle",
+
             "dtype:f4_bitround:12_pcodec_zstd:bitshuffle",
+            "dtype:f4_bitround:11_pcodec_zstd:bitshuffle",
             "dtype:f4_bitround:10_pcodec_zstd:bitshuffle",
             "dtype:f4_bitround:9_pcodec_zstd:bitshuffle",
             "dtype:f4_bitround:8_pcodec_zstd:bitshuffle",
@@ -103,7 +130,7 @@ if __name__=="__main__":
     plot_bars_rtime = True
     plot_bars_error = True
 
-    tres = "hourly"
+    tres = "daily"
 
     res_json_path = Path(f"data/results_compression_{tres}.json")
 
@@ -114,20 +141,21 @@ if __name__=="__main__":
     for fk in results.keys():
         for pk in results[fk].keys():
             for rk in results[fk][pk].keys():
-                combos.append((fk,pk,rk))
+                for ct in results[fk][pk][ct].keys():
+                    combos.append((fk,pk,rk,ct))
     cout = list(map(
         lambda t:sorted(list(set(t))),
         zip(*combos)
         ))
-    all_feats,all_pipelines,all_regions  = cout
+    all_feats,all_pipelines,all_regions,all_chunks = cout
     pipeline_groups["all"] = all_pipelines
     print(all_feats, all_pipelines, all_regions)
 
-    for fk,pk,rk in sorted(combos, key=lambda c:(c[0],c[2],c[1])):
-        r = results[fk][pk][rk]
+    for fk,pk,rk,ct in sorted(combos, key=lambda c:(c[0],c[2],c[1],c[3])):
+        r = results[fk][pk][rk][ct]
         print(f"{r['total_size']/r['chunk_size']:>6.2f}",
             f"    {r['error_stats']['absmean']:>4.2f}    ",
-            fk, rk, pk)
+            fk, rk, pk, ct)
 
     if plot_scatter_cratio_rtime:
         plot_combos = {}
@@ -143,10 +171,13 @@ if __name__=="__main__":
                     for rk in results[fk][pk].keys():
                         if (gk,fk,rk) not in plot_combos.keys():
                             plot_combos[(gk,fk,rk)] = []
-                        plot_combos[(gk,fk,rk)].append(pk)
+                        for ct in results[fk][pk][rk].keys():
+                            if ct not in plot_chunks:
+                                continue
+                        plot_combos[(gk,fk,rk)].append((pk, ct))
 
-        for (gk,fk,rk),pks in plot_combos.items():
-            pdata = [results[fk][pk][rk] for pk in pks]
+        for (gk,fk,rk),pks_cts in plot_combos.items():
+            pdata = [results[fk][pk][rk] for pk,ct in pks_cts]
             cr = np.array([d["total_size"]/d["chunk_size"] for d in pdata])
             ## (pipeline, timstep) MB/s
             rt = np.array([
@@ -161,7 +192,7 @@ if __name__=="__main__":
             isall = gk == "all"
             if isall:
                 color = []
-                for tpk in pks:
+                for tpk,tct in pks_cts:
                     color_found = False
                     for tgk,tgv in pipeline_groups.items():
                         if tgk == "all" or not tpk in tgv:
@@ -187,14 +218,14 @@ if __name__=="__main__":
                 #size=np.array(sizes)/30000,
                 color=color,
                 yerr=(rt50-rt25, rt75-rt50),
-                labels=pks,
+                labels=[f"{tpk} {tct}" for tpk,tct in pks_cts],
                 plot_spec={
                     "title":"Compression vs Access Speed " + \
                             f"\n({tres} {fk} {rk} {gk})",
                     "ylabel":"Load Throughput (MB/s) w/ IQR",
                     "xlabel":"Compression Ratio (uncomp/comp)",
                     #"xscale":"log",
-                    "point_label_fontsize":3.5,
+                    "point_label_fontsize":3,
                     "point_label_rotation":-30,
                     "tight_layout":True,
                     "avoid_label_overlap":False,

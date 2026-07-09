@@ -68,7 +68,11 @@ region_origins = {
 
 ## top-level arguments determining  store structure
 encoding_args = {
-    "chunks":(32,325,450), ## 7.2 MB in 2-byte dtype
+    "chunks":[
+        (32,325,450), ## 7.2 MB in 2-byte dtype
+        (8,650,900), ## 7.2 MB in 2-byte dtype
+        (64,325,225), ## 7.2 MB in 2-byte dtype
+        ],
     "shards":(128,650,900), ## 460 MB in 2-byte dtype
     "dtype":"f32",
     }
@@ -142,6 +146,11 @@ pipeline_config = [
     ("f4",[("lz4hc",{})]),
     ("f2",[("zstd",{})]),
     ("f2",[("lz4hc",{})]),
+
+    ("f4",[("zstd",{})]),
+    ("f4",[("zstd",{"clevel":8})]),
+    ("f4",[("zstd",{"shuffle":"bitshuffle"})]),
+    ("f4",[("zstd",{"shuffle":"bitshuffle", "clevel":8})]),
 
     ## 4096 resolution integer norm
     ("f4",[("intnorm",{"resolution":4096}) ]),
@@ -222,9 +231,18 @@ pipeline_config = [
         ("zstd",{"clevel":5,"shuffle":"bitshuffle"})
         ]),
 
-    ## float truncation
-    ("f4",[("bitround",{"keepbits":12})]),
+    ## float truncation w/o further compression
+    #("f4",[("bitround",{"keepbits":12})]),
+    #("f4",[("bitround",{"keepbits":11})]),
+    #("f4",[("bitround",{"keepbits":10})]),
+    #("f4",[("bitround",{"keepbits":9})]),
+    #("f4",[("bitround",{"keepbits":8})]),
+    #("f4",[("bitround",{"keepbits":6})]),
+
+    ## float truncation: zstd only
     ("f4",[("bitround",{"keepbits":12}), ("zstd",{"shuffle":"bitshuffle"})]),
+    ("f4",[("bitround",{"keepbits":11})]),
+    ("f4",[("bitround",{"keepbits":11}), ("zstd",{"shuffle":"bitshuffle"})]),
     ("f4",[("bitround",{"keepbits":10})]),
     ("f4",[("bitround",{"keepbits":10}), ("zstd",{"shuffle":"bitshuffle"})]),
     ("f4",[("bitround",{"keepbits":9})]),
@@ -233,8 +251,28 @@ pipeline_config = [
     ("f4",[("bitround",{"keepbits":8}), ("zstd",{"shuffle":"bitshuffle"})]),
     ("f4",[("bitround",{"keepbits":6})]),
     ("f4",[("bitround",{"keepbits":6}), ("zstd",{"shuffle":"bitshuffle"})]),
+
+    ("f4",[("bitround",{"keepbits":12}),
+        ("zstd",{"shuffle":"bitshuffle", "clevel":8})]),
+    ("f4",[("bitround",{"keepbits":11}),
+        ("zstd",{"shuffle":"bitshuffle", "clevel":8})]),
+    ("f4",[("bitround",{"keepbits":10}),
+        ("zstd",{"shuffle":"bitshuffle", "clevel":8})]),
+    ("f4",[("bitround",{"keepbits":9}),
+        ("zstd",{"shuffle":"bitshuffle", "clevel":8})]),
+    ("f4",[("bitround",{"keepbits":8}),
+        ("zstd",{"shuffle":"bitshuffle", "clevel":8})]),
+    ("f4",[("bitround",{"keepbits":6}),
+        ("zstd",{"shuffle":"bitshuffle", "clevel":8})]),
+
+    ## float trunction w/ zfpy
     ("f4",[
         ("bitround",{"keepbits":12}),
+        ("zfpy",{}),
+        ("zstd",{"shuffle":"bitshuffle"})
+        ]),
+    ("f4",[
+        ("bitround",{"keepbits":11}),
         ("zfpy",{}),
         ("zstd",{"shuffle":"bitshuffle"})
         ]),
@@ -253,8 +291,41 @@ pipeline_config = [
         ("zfpy",{}),
         ("zstd",{"shuffle":"bitshuffle"})
         ]),
+
     ("f4",[
         ("bitround",{"keepbits":12}),
+        ("zfpy",{}),
+        ("zstd",{"shuffle":"bitshuffle", "clevel":8})
+        ]),
+    ("f4",[
+        ("bitround",{"keepbits":11}),
+        ("zfpy",{}),
+        ("zstd",{"shuffle":"bitshuffle", "clevel":8})
+        ]),
+    ("f4",[
+        ("bitround",{"keepbits":10}),
+        ("zfpy",{}),
+        ("zstd",{"shuffle":"bitshuffle", "clevel":8})
+        ]),
+    ("f4",[
+        ("bitround",{"keepbits":9}),
+        ("zfpy",{}),
+        ("zstd",{"shuffle":"bitshuffle", "clevel":8})
+        ]),
+    ("f4",[
+        ("bitround",{"keepbits":8}),
+        ("zfpy",{}),
+        ("zstd",{"shuffle":"bitshuffle", "clevel":8})
+        ]),
+
+    ## float truncation w/ pcodec
+    ("f4",[
+        ("bitround",{"keepbits":12}),
+        ("pcodec",{}),
+        ("zstd",{"shuffle":"bitshuffle"})
+        ]),
+    ("f4",[
+        ("bitround",{"keepbits":11}),
         ("pcodec",{}),
         ("zstd",{"shuffle":"bitshuffle"})
         ]),
@@ -273,8 +344,35 @@ pipeline_config = [
         ("pcodec",{}),
         ("zstd",{"shuffle":"bitshuffle"})
         ]),
-    ("f4",[("bitround",{"keepbits":3})]),
-    ("f4",[("bitround",{"keepbits":3}), ("zstd",{"shuffle":"bitshuffle"})]),
+
+    ("f4",[
+        ("bitround",{"keepbits":12}),
+        ("pcodec",{}),
+        ("zstd",{"shuffle":"bitshuffle", "clevel":8})
+        ]),
+    ("f4",[
+        ("bitround",{"keepbits":11}),
+        ("pcodec",{}),
+        ("zstd",{"shuffle":"bitshuffle", "clevel":8})
+        ]),
+    ("f4",[
+        ("bitround",{"keepbits":10}),
+        ("pcodec",{}),
+        ("zstd",{"shuffle":"bitshuffle", "clevel":8})
+        ]),
+    ("f4",[
+        ("bitround",{"keepbits":9}),
+        ("pcodec",{}),
+        ("zstd",{"shuffle":"bitshuffle", "clevel":8})
+        ]),
+    ("f4",[
+        ("bitround",{"keepbits":8}),
+        ("pcodec",{}),
+        ("zstd",{"shuffle":"bitshuffle", "clevel":8})
+        ]),
+
+    #("f4",[("bitround",{"keepbits":3})]),
+    #("f4",[("bitround",{"keepbits":3}), ("zstd",{"shuffle":"bitshuffle"})]),
     ]
 
 

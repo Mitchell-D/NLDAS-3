@@ -184,10 +184,10 @@ def benchmark_compression(feat, zarr_path, region_group, out_group,
 
 if __name__=="__main__":
     out_dir = Path("data/comp-tests/")
-    nworkers = 12
+    nworkers = 18
     extract_feats = config.extract_feats
 
-    time_res = "hourly"
+    time_res = "daily"
 
     zarr_path_out = Path(f"data/store/compression_{time_res}.zarr")
     out_json = Path(f"data/results_compression_{time_res}.json")
@@ -200,10 +200,10 @@ if __name__=="__main__":
 
     run_feats = [
         "Tair",
-        "PSurf",
-        "SWdown",
-        "Wind_E",
-        "Rainf",
+        #"PSurf",
+        #"SWdown",
+        #"Wind_E",
+        #"Rainf",
         ]
 
     run_regions = [
@@ -216,47 +216,67 @@ if __name__=="__main__":
         ]
 
     run_pipelines = [
-        "dtype:f2_zstd",
-        "dtype:f2_lz4hc",
+        #"dtype:f2_zstd",
+        #"dtype:f2_lz4hc",
         "dtype:f4_zstd",
-        "dtype:f4_lz4hc",
+        "dtype:f4_zstd:bitshuffle",
+        "dtype:f4_zstd:8,bitshuffle",
+        #"dtype:f4_lz4hc",
 
-        "dtype:f4_intnorm:4096",
-        "dtype:f4_intnorm:4096_zstd",
-        "dtype:f4_intnorm:4096_zstd:shuffle",
-        "dtype:f4_intnorm:4096_zstd:bitshuffle",
-        "dtype:f4_intnorm:4096_delta:u2,u2_zstd:5,bitshuffle",
-        "dtype:f4_intnorm:4096,i4_zfpy_zstd:5,bitshuffle",
-        "dtype:f4_intnorm:4096,u4_pcodec_zstd:5,bitshuffle",
+        #"dtype:f4_intnorm:4096",
+        #"dtype:f4_intnorm:4096_zstd",
+        #"dtype:f4_intnorm:4096_zstd:shuffle",
+        #"dtype:f4_intnorm:4096_zstd:bitshuffle",
+        #"dtype:f4_intnorm:4096_delta:u2,u2_zstd:5,bitshuffle",
+        #"dtype:f4_intnorm:4096,i4_zfpy_zstd:5,bitshuffle",
+        #"dtype:f4_intnorm:4096,u4_pcodec_zstd:5,bitshuffle",
 
-        "dtype:f4_intnorm:2048",
-        "dtype:f4_intnorm:2048_zstd:shuffle",
-        "dtype:f4_intnorm:2048_zstd:bitshuffle",
-        "dtype:f4_intnorm:2048_delta:u2,u2_zstd:5,bitshuffle",
-        "dtype:f4_intnorm:2048,i4_zfpy_zstd:5,bitshuffle",
-        "dtype:f4_intnorm:2048,u4_pcodec_zstd:5,bitshuffle",
+        #"dtype:f4_intnorm:2048",
+        #"dtype:f4_intnorm:2048_zstd:shuffle",
+        #"dtype:f4_intnorm:2048_zstd:bitshuffle",
+        #"dtype:f4_intnorm:2048_delta:u2,u2_zstd:5,bitshuffle",
+        #"dtype:f4_intnorm:2048,i4_zfpy_zstd:5,bitshuffle",
+        #"dtype:f4_intnorm:2048,u4_pcodec_zstd:5,bitshuffle",
 
-        "dtype:f4_intnorm:custom",
-        "dtype:f4_intnorm:custom_zstd:shuffle",
-        "dtype:f4_intnorm:custom_zstd:bitshuffle",
-        "dtype:f4_intnorm:custom_delta:u2,u2_zstd:5,bitshuffle",
-        "dtype:f4_intnorm:custom,i4_zfpy_zstd:5,bitshuffle",
-        "dtype:f4_intnorm:custom,u4_pcodec_zstd:5,bitshuffle",
+        #"dtype:f4_intnorm:custom",
+        #"dtype:f4_intnorm:custom_zstd:shuffle",
+        #"dtype:f4_intnorm:custom_zstd:bitshuffle",
+        #"dtype:f4_intnorm:custom_delta:u2,u2_zstd:5,bitshuffle",
+        #"dtype:f4_intnorm:custom,i4_zfpy_zstd:5,bitshuffle",
+        #"dtype:f4_intnorm:custom,u4_pcodec_zstd:5,bitshuffle",
 
         "dtype:f4_bitround:12_zfpy_zstd:bitshuffle",
+        "dtype:f4_bitround:11_zfpy_zstd:bitshuffle",
         "dtype:f4_bitround:10_zfpy_zstd:bitshuffle",
         "dtype:f4_bitround:9_zfpy_zstd:bitshuffle",
-        "dtype:f4_bitround:8_zfpy_zstd:bitshuffle",
+
+        "dtype:f4_bitround:12_zfpy_zstd:8,bitshuffle",
+        "dtype:f4_bitround:11_zfpy_zstd:8,bitshuffle",
+        "dtype:f4_bitround:10_zfpy_zstd:8,bitshuffle",
+        "dtype:f4_bitround:9_zfpy_zstd:8,bitshuffle",
+        #"dtype:f4_bitround:8_zfpy_zstd:bitshuffle",
 
         "dtype:f4_bitround:12_pcodec_zstd:bitshuffle",
+        "dtype:f4_bitround:11_pcodec_zstd:bitshuffle",
         "dtype:f4_bitround:10_pcodec_zstd:bitshuffle",
         "dtype:f4_bitround:9_pcodec_zstd:bitshuffle",
-        "dtype:f4_bitround:8_pcodec_zstd:bitshuffle",
+
+        "dtype:f4_bitround:12_pcodec_zstd:8,bitshuffle",
+        "dtype:f4_bitround:11_pcodec_zstd:8,bitshuffle",
+        "dtype:f4_bitround:10_pcodec_zstd:8,bitshuffle",
+        "dtype:f4_bitround:9_pcodec_zstd:8,bitshuffle",
+        #"dtype:f4_bitround:8_pcodec_zstd:bitshuffle",
 
         "dtype:f4_bitround:12_zstd:bitshuffle",
+        "dtype:f4_bitround:11_zstd:bitshuffle",
         "dtype:f4_bitround:10_zstd:bitshuffle",
         "dtype:f4_bitround:9_zstd:bitshuffle",
-        "dtype:f4_bitround:8_zstd:bitshuffle",
+
+        "dtype:f4_bitround:12_zstd:8,bitshuffle",
+        "dtype:f4_bitround:11_zstd:8,bitshuffle",
+        "dtype:f4_bitround:10_zstd:8,bitshuffle",
+        "dtype:f4_bitround:9_zstd:8,bitshuffle",
+        #"dtype:f4_bitround:8_zstd:bitshuffle",
         #"dtype:f4_bitround:12",
         #"dtype:f4_bitround:6",
         #"dtype:f4_bitround:6_zstd:bitshuffle",
@@ -287,9 +307,11 @@ if __name__=="__main__":
     args = []
     settings = {}
     zreg = zarr.open(zarr_path_out, mode="r", path="/regions")
+    ## for each of the feats...
     for fk in extract_feats:
         if fk not in run_feats:
             continue
+        ## for each of the pipeline configurations...
         for pk,pd in config.pipelines.items():
             if pk not in run_pipelines:
                 continue
@@ -300,29 +322,32 @@ if __name__=="__main__":
                     time_res=time_res
                     )
 
+            ## for each of the regions...
             for rk in zreg.keys():
                 if rk not in run_regions:
                     continue
                 if (fk,pk,rk) in skip:
                     continue
-                args.append({
-                    "feat":fk,
-                    "zarr_path":zarr_path_out,
-                    "region_group":f"/regions/{rk}",
-                    "out_group":f"variants",
-                    "out_zarr_array_name":f"{fk}|{pk}|{rk}",
-                    "dtype":pout["dtype"],
-                    "chunks":out_chunks,
-                    "shards":out_shards,
-                    "filters":pout["filters"],
-                    "serializer":pout["serializer"],
-                    "compressors":pout["compressors"],
-                    "delete_after_finished":delete_after_finished,
-                    "overwrite_if_exists":overwrite_if_exists,
-                    "pipeline_name":pk,
-                    "region_name":rk,
-                    })
-                settings[(fk,pk,rk)] = pset
+                for ct in out_chunks:
+                    cstr = '-'.join(map(str,ct))
+                    args.append({
+                        "feat":fk,
+                        "zarr_path":zarr_path_out,
+                        "region_group":f"/regions/{rk}",
+                        "out_group":f"variants",
+                        "out_zarr_array_name":f"{fk}|{pk}|{rk}|{cstr}",
+                        "dtype":pout["dtype"],
+                        "chunks":ct,
+                        "shards":out_shards,
+                        "filters":pout["filters"],
+                        "serializer":pout["serializer"],
+                        "compressors":pout["compressors"],
+                        "delete_after_finished":delete_after_finished,
+                        "overwrite_if_exists":overwrite_if_exists,
+                        "pipeline_name":pk,
+                        "region_name":rk,
+                        })
+                    settings[(fk,pk,rk,ct)] = pset
 
     args = sorted(
         args,
@@ -363,11 +388,15 @@ if __name__=="__main__":
             fk = a["feat"]
             pk = a["pipeline_name"]
             rk = a["region_name"]
+            ct = a["chunks"]
+            cstr = ",".join(map(str,ct))
             if fk not in all_results.keys():
                 all_results[fk] = {}
             if pk not in all_results[fk].keys():
                 all_results[fk][pk] = {}
-            all_results[fk][pk][rk] = dict(zip(out_fields, r))
+            if rk not in all_results[fk][pk].keys():
+                all_results[fk][pk][rk] = {}
+            all_results[fk][pk][rk][cstr] = dict(zip(out_fields, r))
             zres.attrs.update({"benchmarks":all_results})
             json.dump(all_results, out_json.open("w"))
             print(f"Finished {fk} {pk} {rk}")
