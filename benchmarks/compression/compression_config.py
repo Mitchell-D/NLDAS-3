@@ -69,9 +69,11 @@ region_origins = {
 ## top-level arguments determining  store structure
 encoding_args = {
     "chunks":[
-        (32,325,450), ## 7.2 MB in 2-byte dtype
-        (8,650,900), ## 7.2 MB in 2-byte dtype
-        (64,325,225), ## 7.2 MB in 2-byte dtype
+        (32,325,450), ## 18.72 MB in 4-byte dtype
+        (8,650,900), ## 18.72 MB in 4-byte dtype
+        (64,325,225), ## 18.72 MB in 4-byte dtype
+        (64,325,450), ## 37.44 MB in 4-byte dtype
+        (64,650,450), ## 74.8 MB in 4-byte dtype
         ],
     "shards":(128,650,900), ## 460 MB in 2-byte dtype
     "dtype":"f32",
@@ -151,6 +153,14 @@ pipeline_config = [
     ("f4",[("zstd",{"clevel":8})]),
     ("f4",[("zstd",{"shuffle":"bitshuffle"})]),
     ("f4",[("zstd",{"shuffle":"bitshuffle", "clevel":8})]),
+
+    ## lossless zfpy and pcodec
+    ("f4",[ ("zfpy",{}), ("zstd",{"shuffle":"bitshuffle"}) ]),
+    ("f4",[ ("pcodec",{}), ("zstd",{"shuffle":"bitshuffle"}) ]),
+
+    ## lossy zfpy only
+    ("f4",[ ("zfpy",{"tolerance":.05}), ("zstd",{"shuffle":"bitshuffle"}) ]),
+    ("f4",[ ("zfpy",{"tolerance":.01}), ("zstd",{"shuffle":"bitshuffle"}) ]),
 
     ## 4096 resolution integer norm
     ("f4",[("intnorm",{"resolution":4096}) ]),
@@ -240,6 +250,8 @@ pipeline_config = [
     #("f4",[("bitround",{"keepbits":6})]),
 
     ## float truncation: zstd only
+    ("f4",[("bitround",{"keepbits":14}), ("zstd",{"shuffle":"bitshuffle"})]),
+    ("f4",[("bitround",{"keepbits":13}), ("zstd",{"shuffle":"bitshuffle"})]),
     ("f4",[("bitround",{"keepbits":12}), ("zstd",{"shuffle":"bitshuffle"})]),
     ("f4",[("bitround",{"keepbits":11})]),
     ("f4",[("bitround",{"keepbits":11}), ("zstd",{"shuffle":"bitshuffle"})]),
@@ -267,6 +279,16 @@ pipeline_config = [
 
     ## float trunction w/ zfpy
     ("f4",[
+        ("bitround",{"keepbits":14}),
+        ("zfpy",{}),
+        ("zstd",{"shuffle":"bitshuffle"})
+        ]),
+    ("f4",[
+        ("bitround",{"keepbits":13}),
+        ("zfpy",{}),
+        ("zstd",{"shuffle":"bitshuffle"})
+        ]),
+    ("f4",[
         ("bitround",{"keepbits":12}),
         ("zfpy",{}),
         ("zstd",{"shuffle":"bitshuffle"})
@@ -292,6 +314,16 @@ pipeline_config = [
         ("zstd",{"shuffle":"bitshuffle"})
         ]),
 
+    ("f4",[
+        ("bitround",{"keepbits":14}),
+        ("zfpy",{}),
+        ("zstd",{"shuffle":"bitshuffle", "clevel":8})
+        ]),
+    ("f4",[
+        ("bitround",{"keepbits":13}),
+        ("zfpy",{}),
+        ("zstd",{"shuffle":"bitshuffle", "clevel":8})
+        ]),
     ("f4",[
         ("bitround",{"keepbits":12}),
         ("zfpy",{}),
@@ -319,6 +351,16 @@ pipeline_config = [
         ]),
 
     ## float truncation w/ pcodec
+    ("f4",[
+        ("bitround",{"keepbits":14}),
+        ("pcodec",{}),
+        ("zstd",{"shuffle":"bitshuffle"})
+        ]),
+    ("f4",[
+        ("bitround",{"keepbits":13}),
+        ("pcodec",{}),
+        ("zstd",{"shuffle":"bitshuffle"})
+        ]),
     ("f4",[
         ("bitround",{"keepbits":12}),
         ("pcodec",{}),

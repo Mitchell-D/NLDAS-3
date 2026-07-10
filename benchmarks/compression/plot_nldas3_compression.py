@@ -5,16 +5,22 @@ import json
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 from pathlib import Path
+from pprint import pprint
 
 from plotting import plot_scatter,get_listed_cmap
 
 if __name__=="__main__":
-    fig_dir = Path("figures/")
+    fig_dir = Path("figures_chunkshape/")
     #res_json_path = data_dir.joinpath("nldas3_chunk_bench_results.json")
 
-    plot_feats = ["Tair", "PSurf", "SWdown"]
-    plot_regions = ["midwest", "desertw", "alaska"]
-    plot_chunks = ["32,325,450", "8,650,900", "64,325,225"]
+    #plot_feats = ["Tair", "PSurf", "SWdown"]
+    #plot_feats = ["Tair"]
+    plot_feats = ["PSurf", "SWdown", "Rainf"]
+    plot_regions = ["midwest", "desertw", "alaska", "mountainw"]
+    #plot_chunks = ["32,325,450", "8,650,900", "64,325,225"]
+    plot_chunks = ["32,325,450", "8,650,900", "64,325,225",
+            "64,325,450", "64,650,450"]
+    #plot_chunks = ["32,325,450", "64,650,450"]
     exclude_pipelines = [
         "dtype:f4_bitround:6_zstd:bitshuffle", ## error way too high
         "dtype:f4_bitround:6", ## no cr since no compression
@@ -23,6 +29,30 @@ if __name__=="__main__":
         "dtype:f4_bitround:12", ## no cr since no compression
         "dtype:f2_lz4hc", ## way too much truncation error
         "dtype:f2_zstd", ## way too much truncation error
+
+        ## essentially no difference from higher zstd compression level
+        "dtype:f4_bitround:12_zstd:8,bitshuffle",
+        "dtype:f4_bitround:11_zstd:8,bitshuffle",
+        "dtype:f4_bitround:10_zstd:8,bitshuffle",
+        "dtype:f4_bitround:9_zstd:8,bitshuffle",
+        "dtype:f4_bitround:8_zstd:8,bitshuffle",
+        "dtype:f4_bitround:6_zstd:8,bitshuffle",
+
+        "dtype:f4_bitround:12_zfpy_zstd:8,bitshuffle",
+        "dtype:f4_bitround:11_zfpy_zstd:8,bitshuffle",
+        "dtype:f4_bitround:10_zfpy_zstd:8,bitshuffle",
+        "dtype:f4_bitround:9_zfpy_zstd:8,bitshuffle",
+        "dtype:f4_bitround:8_zfpy_zstd:8,bitshuffle",
+
+        "dtype:f4_bitround:12_pcodec_zstd:8,bitshuffle",
+        "dtype:f4_bitround:11_pcodec_zstd:8,bitshuffle",
+        "dtype:f4_bitround:10_pcodec_zstd:8,bitshuffle",
+        "dtype:f4_bitround:9_pcodec_zstd:8,bitshuffle",
+        "dtype:f4_bitround:8_pcodec_zstd:8,bitshuffle",
+
+        ## bizzarely high maximum error
+        "dtype:f4_zfpy:0.05_zstd:bitshuffle",
+        "dtype:f4_zfpy:0.01_zstd:bitshuffle",
         ]
 
     pipeline_groups = {
@@ -30,10 +60,15 @@ if __name__=="__main__":
             "dtype:f2_lz4hc",
             "dtype:f2_zstd",
             "dtype:f4_lz4hc",
-            "dtype:f4_zstd"
+            "dtype:f4_zstd",
 
             "dtype:f4_zstd:bitshuffle",
             "dtype:f4_zstd:8,bitshuffle",
+
+            "dtype:f4_zfpy_zstd:bitshuffle",
+            "dtype:f4_pcodec_zstd:bitshuffle",
+            "dtype:f4_zfpy:0.05_zstd:bitshuffle",
+            "dtype:f4_zfpy:0.01_zstd:bitshuffle",
             ],
         "bitround":[
             "dtype:f4_bitround:12",
@@ -60,6 +95,8 @@ if __name__=="__main__":
             "dtype:f4_bitround:9_pcodec_zstd:8,bitshuffle",
             "dtype:f4_bitround:8_pcodec_zstd:8,bitshuffle",
 
+            "dtype:f4_bitround:14_zstd:bitshuffle",
+            "dtype:f4_bitround:13_zstd:bitshuffle",
             "dtype:f4_bitround:12_zstd:bitshuffle",
             "dtype:f4_bitround:11_zstd:bitshuffle",
             "dtype:f4_bitround:10_zstd:bitshuffle",
@@ -67,12 +104,16 @@ if __name__=="__main__":
             "dtype:f4_bitround:8_zstd:bitshuffle",
             "dtype:f4_bitround:6_zstd:bitshuffle",
 
+            "dtype:f4_bitround:14_zfpy_zstd:bitshuffle",
+            "dtype:f4_bitround:13_zfpy_zstd:bitshuffle",
             "dtype:f4_bitround:12_zfpy_zstd:bitshuffle",
             "dtype:f4_bitround:11_zfpy_zstd:bitshuffle",
             "dtype:f4_bitround:10_zfpy_zstd:bitshuffle",
             "dtype:f4_bitround:9_zfpy_zstd:bitshuffle",
             "dtype:f4_bitround:8_zfpy_zstd:bitshuffle",
 
+            "dtype:f4_bitround:14_pcodec_zstd:bitshuffle",
+            "dtype:f4_bitround:13_pcodec_zstd:bitshuffle",
             "dtype:f4_bitround:12_pcodec_zstd:bitshuffle",
             "dtype:f4_bitround:11_pcodec_zstd:bitshuffle",
             "dtype:f4_bitround:10_pcodec_zstd:bitshuffle",
@@ -106,7 +147,10 @@ if __name__=="__main__":
             "dtype:f4_intnorm:2048,i4_zfpy_zstd:5,bitshuffle",
             "dtype:f4_intnorm:2048_pcodec_zstd:5,bitshuffle",
             "dtype:f4_intnorm:2048,u4_pcodec_zstd:5,bitshuffle"
-            ]
+            ],
+        "bitround-13":[
+            "dtype:f4_bitround:13_pcodec_zstd:bitshuffle",
+            ],
         }
     pipeline_groups["norm-all"] = pipeline_groups["norm-custom"] \
         + pipeline_groups["norm-4096"] + pipeline_groups["norm-2048"]
@@ -122,7 +166,8 @@ if __name__=="__main__":
         "norm-2048":"#238b45", ## darkgreen
         }
 
-    plot_groups = ["all", "norm-all", "bitround"]
+    #plot_groups = ["all", "bitround", "comp"]
+    plot_groups = ["bitround-13"]
 
     plot_scatter_cratio_rtime = True
     plot_scatter_cratio_error = True
@@ -141,7 +186,7 @@ if __name__=="__main__":
     for fk in results.keys():
         for pk in results[fk].keys():
             for rk in results[fk][pk].keys():
-                for ct in results[fk][pk][ct].keys():
+                for ct in results[fk][pk][rk].keys():
                     combos.append((fk,pk,rk,ct))
     cout = list(map(
         lambda t:sorted(list(set(t))),
@@ -169,24 +214,39 @@ if __name__=="__main__":
                     if pk not in pipeline_groups[gk]:
                         continue
                     for rk in results[fk][pk].keys():
+                        if rk not in plot_regions:
+                            continue
                         if (gk,fk,rk) not in plot_combos.keys():
                             plot_combos[(gk,fk,rk)] = []
                         for ct in results[fk][pk][rk].keys():
                             if ct not in plot_chunks:
                                 continue
-                        plot_combos[(gk,fk,rk)].append((pk, ct))
+                            plot_combos[(gk,fk,rk)].append((pk, ct))
 
         for (gk,fk,rk),pks_cts in plot_combos.items():
-            pdata = [results[fk][pk][rk] for pk,ct in pks_cts]
+            pdata = [results[fk][pk][rk][ct] for pk,ct in pks_cts]
             cr = np.array([d["total_size"]/d["chunk_size"] for d in pdata])
+            pprint(pdata)
+            if len(pdata) == 0:
+                print("no data found for", gk, fk, rk)
+                continue
             ## (pipeline, timstep) MB/s
-            rt = np.array([
+            rt = [
                 d["total_size"] / len(d["load_time"]) / 1000**2 \
                         / np.array(d["load_time"])
                 for d in pdata
-                ])
-            rt25,rt50,rt75 = np.percentile(rt, [25,50,75], axis=-1)
-            rt = np.average(rt, axis=-1)
+                ]
+            print(rt)
+            rt25,rt50,rt75 = map(np.squeeze, np.split(np.array([
+                np.percentile(v, [25, 50, 75])
+                for v in rt
+                ]), 3, axis=-1))
+            print(rt25.shape, rt50.shape, rt75.shape)
+            rt = np.array([np.average(v) for v in rt])
+            print(rt)
+            #rt = np.array(rt)
+            #rt25,rt50,rt75 = np.percentile(rt, [25,50,75], axis=-1)
+            #rt = np.average(rt, axis=-1)
 
             ## color "all" group by inclusion in other groups
             isall = gk == "all"
@@ -210,7 +270,7 @@ if __name__=="__main__":
 
 
             fpath = fig_dir.joinpath(
-                    f"scatter/scatter_{gk}_{fk}_{rk}_{tres}_cratio-rtime.png")
+                    f"scatter_{gk}_{fk}_{rk}_{tres}_cratio-rtime.png")
 
             plot_scatter(
                 x=cr,
@@ -225,8 +285,8 @@ if __name__=="__main__":
                     "ylabel":"Load Throughput (MB/s) w/ IQR",
                     "xlabel":"Compression Ratio (uncomp/comp)",
                     #"xscale":"log",
-                    "point_label_fontsize":3,
-                    "point_label_rotation":-30,
+                    "point_label_fontsize":6,
+                    "point_label_rotation":-20,
                     "tight_layout":True,
                     "avoid_label_overlap":False,
                     "errorbar_elinewidth":1,
@@ -234,6 +294,8 @@ if __name__=="__main__":
                     "errorbar_ecolor":"gray",
                     "label_ha":"center",
                     "label_va":"center",
+                    "dpi":200,
+                    "fig_size":(11,9),
                     "use_colorbar":True,
                     "cbar_label":[
                         "Mean Absolute Error", "Compression Category"
@@ -257,12 +319,17 @@ if __name__=="__main__":
                     if pk not in pipeline_groups[gk]:
                         continue
                     for rk in results[fk][pk].keys():
+                        if rk not in plot_regions:
+                            continue
                         if (gk,fk,rk) not in plot_combos.keys():
                             plot_combos[(gk,fk,rk)] = []
-                        plot_combos[(gk,fk,rk)].append(pk)
+                        for ct in results[fk][pk][rk].keys():
+                            if ct not in plot_chunks:
+                                continue
+                            plot_combos[(gk,fk,rk)].append((pk, ct))
 
-        for (gk,fk,rk),pks in plot_combos.items():
-            pdata = [results[fk][pk][rk] for pk in pks]
+        for (gk,fk,rk),pks_cts in plot_combos.items():
+            pdata = [results[fk][pk][rk][ct] for pk,ct in pks_cts]
             cr = np.array([d["total_size"]/d["chunk_size"] for d in pdata])
             er = np.array([d["error_stats"]["absmean"] for d in pdata])
             er_stdv = np.array([
@@ -274,17 +341,18 @@ if __name__=="__main__":
                         - d["error_stats"]["absmean"]
                 for d in pdata
                 ])
-            rt = np.average([
+            rt = [
                 d["total_size"]/1000**2 / \
                         np.array(d["load_time"])/len(d["load_time"])
                 for d in pdata
-                ], axis=-1)
+                ]
+            rt = np.array([np.average(v) for v in rt])
 
             ## color "all" group by inclusion in other groups
             isall = gk == "all"
             if isall:
                 color = []
-                for tpk in pks:
+                for tpk,tct in pks_cts:
                     color_found = False
                     for tgk,tgv in pipeline_groups.items():
                         if tgk == "all" or not tpk in tgv:
@@ -301,22 +369,22 @@ if __name__=="__main__":
                 color = rt
 
             fpath = fig_dir.joinpath(
-                    f"scatter/scatter_{gk}_{fk}_{rk}_{tres}_cratio-error.png")
+                    f"scatter_{gk}_{fk}_{rk}_{tres}_cratio-error.png")
             plot_scatter(
                 x=cr,
                 y=er,
                 #size=np.array(sizes)/30000,
                 color=color,
                 yerr=((0,)*er_max.size, er_max),
-                labels=pks,
+                labels=[f"{tpk} {tct}" for tpk,tct in pks_cts],
                 plot_spec={
                     "title":"Compression vs Trunc Error " + \
                             f"\n({tres} {fk} {rk} {gk})",
                     "ylabel":"Absolute Error",
                     "xlabel":"Compression Ratio (uncomp/comp)",
                     #"xscale":"log",
-                    "point_label_fontsize":3.5,
-                    "point_label_rotation":-30,
+                    "point_label_fontsize":6,
+                    "point_label_rotation":-20,
                     "tight_layout":True,
                     "avoid_label_overlap":False,
                     "errorbar_elinewidth":1,
@@ -326,6 +394,8 @@ if __name__=="__main__":
                     "label_va":"center",
                     "use_colorbar":True,
                     "ylim":(0, None),
+                    "dpi":200,
+                    "fig_size":(11,9),
                     "cbar_label":[
                         "Mean Throughput (MB/s)", "Compression Category"
                         ][isall],
