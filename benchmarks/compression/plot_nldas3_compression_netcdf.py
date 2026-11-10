@@ -53,9 +53,10 @@ if __name__=="__main__":
             if not k in exclude_vars
             ]).ravel()
         rtimes.append(np.average(rt))
+        p10,p90 = np.percentile(rt, [10, 90])
         rtbounds.append((
-            rtimes[-1] - np.amin(rt),
-            np.amax(rt) - rtimes[-1],
+            rtimes[-1] - p10,
+            p90 - rtimes[-1],
             ))
         cr = np.array(cv["comp_ratio"])
         cratios.append(np.average(cr))
@@ -80,8 +81,8 @@ if __name__=="__main__":
         labels=css,
         plot_spec={
             "title":"NLDAS-3 netCDF Compression vs Access Speed",
-            "ylabel":"Load Throughput (B/s) and min/max",
-            "xlabel":"Compression Ratio (default/comp)",
+            "ylabel":"Average array load time (s) and 10/90 pctl",
+            "xlabel":"Compression Ratio (default/comp) with min/max",
             #"xscale":"log",
             "point_label_fontsize":6,
             "point_label_rotation":-20,
