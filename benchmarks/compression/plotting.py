@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
@@ -22,6 +23,7 @@ def plot_point_cloud_3d(coords, cvalues=None, svalues=None, annotations=None,
         "fig_size":(8,8), "cmap":"magma", "title_size":14, "size_scale":1,
         "annotation_fontsize": 8, "annotation_color": "black",
         "annotation_alpha": 0.9, "annotation_offset": (0.02, 0.02, 0.02),
+        "hline":None,
         }
     ps.update(plot_spec)
     assert coords.shape[-1] == 3
@@ -37,6 +39,7 @@ def plot_point_cloud_3d(coords, cvalues=None, svalues=None, annotations=None,
         marker_size = ps.get("size_scale")
     else:
         marker_size = marker_size * ps.get("size_scale")
+
     scatter = ax.scatter(
         coords[...,0], coords[...,1], coords[...,2],
         c=ps.get("marker_colors", cvalues),
@@ -173,10 +176,12 @@ def plot_nested_bars(data_dict:dict, labels:dict={}, plot_error_bars=False,
         error bar data per bar, as specified above
     :@param plot_spec: Dict of configuration options for the plot
     """
-    ps = {"xlabel":"", "ylabel":"", "text_size":12, "title":"", "dpi":80,
-            "figsize":(12,12), "legend_ncols":1, "line_opacity":1,
-            "cmap":"hsv", "label_fontsize":14, "title_fontsize":20,
-            "legend_fontsize":14, "bar_spacing":1}
+    ps = {
+        "xlabel":"", "ylabel":"", "text_size":12, "title":"", "dpi":80,
+        "figsize":(12,12), "legend_ncols":1, "line_opacity":1,
+        "cmap":"hsv", "label_fontsize":14, "title_fontsize":20,
+        "legend_fontsize":14, "bar_spacing":1, "hline":None, "hline_kwargs":{},
+        }
     ps.update(plot_spec)
     fig,ax = plt.subplots()
 
@@ -217,6 +222,9 @@ def plot_nested_bars(data_dict:dict, labels:dict={}, plot_error_bars=False,
                     color=ps.get("err_color","black"),
                     ))
         offset += bwidth
+
+    if ps.get("hline"):
+        plt.axhline(ps.get("hline"), **ps.get("hline_kwargs"))
 
     ax.set_xticks(
             group_starts+bwidth/2, [labels.get(gk,gk) for gk in gkeys],

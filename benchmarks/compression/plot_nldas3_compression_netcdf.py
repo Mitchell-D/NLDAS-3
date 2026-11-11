@@ -10,13 +10,24 @@ from pprint import pprint
 from plotting import plot_scatter,get_listed_cmap,plot_nested_bars
 
 if __name__=="__main__":
-    res_json_path = Path(
-        "/discover/nobackup/mtdodson/nldas3/" + \
-        "comp_bench_1.json"
-        )
-    fig_dir = Path("/home/mtdodson/NLDAS-3/benchmarks/compression/figures")
+    #res_json_path = Path(
+    #    "/discover/nobackup/mtdodson/nldas3/" + \
+    #    "comp_bench_1.json"
+    #    )
+    res_json_path = Path("data/comp_bench_1.json")
+    #fig_dir = Path("/home/mtdodson/NLDAS-3/benchmarks/compression/figures")
+    fig_dir = Path("figures")
     comp_read_scatter_path = fig_dir.joinpath(
         "nldas3_compression_netcdf_comp-vs-read.png"
+        )
+    comp_bar_path = fig_dir.joinpath(
+        "nldas3_compression_netcdf_comp.png"
+        )
+    write_bar_path = fig_dir.joinpath(
+        "nldas3_compression_netcdf_write.png"
+        )
+    read_bar_path = fig_dir.joinpath(
+        "nldas3_compression_netcdf_read.png"
         )
     exclude_vars = ["lon", "lat", "time"]
 
@@ -71,6 +82,7 @@ if __name__=="__main__":
             np.amax(wt) - wtimes[-1],
             ))
 
+    #'''
     plot_scatter(
         x=cratios,
         y=rtimes,
@@ -103,5 +115,85 @@ if __name__=="__main__":
             "norm":"linear",
             },
         fig_path=comp_read_scatter_path,
+        )
+    #'''
+
+    bars_comp = {}
+    bars_write = {}
+    bars_read = {}
+    for i,cs in enumerate(css):
+        alglvl,*other = cs.split("_")
+        other = "_".join(other)
+        if not other in bars_comp.keys():
+            bars_comp[other] = {}
+            bars_write[other] = {}
+            bars_read[other] = {}
+        bars_comp[other][alglvl] = [cratios[i], crbounds[i][1]+crbounds[i][0]]
+        bars_write[other][alglvl] = [wtimes[i], wtbounds[i][1]+wtbounds[i][0]]
+        bars_read[other][alglvl] = [rtimes[i], rtbounds[i][1]+rtbounds[i][0]]
+        #print(alglvl, other)
+
+    bars_comp["none"] = bars_comp.pop("")
+    bars_write["none"] = bars_write.pop("")
+    bars_read["none"] = bars_read.pop("")
+
+    plot_nested_bars(
+        data_dict=bars_comp,
+        labels={},
+        plot_error_bars=True,
+        bar_colors=None,
+        plot_spec={
+            "title":"NLDAS-3 netCDF compression ratios vs current settings",
+            "cmap":"rainbow",
+            "hline":1,
+            "ylabel":"compression ratio (cur size / new size)",
+            "hline_kwargs":{
+                "zorder":-5,
+                },
+            },
+        show=False,
+        fig_path=comp_bar_path,
+        group_order=None,
+        bar_order=list(sorted(bars_comp[other].keys())),
+        )
+
+    plot_nested_bars(
+        data_dict=bars_read,
+        labels={},
+        plot_error_bars=True,
+        bar_colors=None,
+        plot_spec={
+            "title":"NLDAS-3 netCDF per-variable read times (10-90 pctl)",
+            "cmap":"rainbow",
+            "ylabel":"read time (seconds)",
+            #"hline":1,
+            "hline_kwargs":{
+                "zorder":-5,
+                },
+            },
+        show=True,
+        fig_path=read_bar_path,
+        group_order=None,
+        bar_order=list(sorted(bars_comp[other].keys())),
+        )
+
+    plot_nested_bars(
+        data_dict=bars_write,
+        labels={},
+        plot_error_bars=True,
+        bar_colors=None,
+        plot_spec={
+            "title":"NLDAS-3 full netCDF write times",
+            "cmap":"rainbow",
+            "ylabel":"write time (seconds)",
+            #"hline":1,
+            "hline_kwargs":{
+                "zorder":-5,
+                },
+            },
+        show=False,
+        fig_path=write_bar_path,
+        group_order=None,
+        bar_order=list(sorted(bars_comp[other].keys())),
         )
     print("finished")
